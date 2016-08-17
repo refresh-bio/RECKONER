@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 0.1
+ * Version: 0.2
  * 
  */
 
@@ -37,26 +37,26 @@ public:
     int min_quality_score;
 
     std::vector<std::streampos> chunks;
+    std::size_t chunk_size;
+    std::size_t last_chunk_size;
 
     // constructor
 
     C_check_read() :
-    num_reads(0),
-    max_read_length(0),
-    init_num_elements(0),
-    interval(0),
-    min_num_processed_reads(0),
-    quality_score_offset(0),
-    max_quality_score(-1000),
-    min_quality_score(1000) {
+        num_reads(0),
+        max_read_length(0),
+        init_num_elements(0),
+        interval(0),
+        min_num_processed_reads(0),
+        quality_score_offset(0),
+        max_quality_score(-1000),
+        min_quality_score(1000),
+        chunk_size (DEFAULT_CHUNK_SIZE),
+        last_chunk_size(0) {
     };
 
     // functions
     void check_read_file(const C_arg& c_inst_args, const std::string& read_file_name, const FileReader::FileType read_file_type);
-
-private:
-    // functions
-    void create_chunks(const C_arg& c_inst_args, const std::string& read_file_name, const FileReader::FileType read_file_type, std::size_t num_reads);
 };
 
 

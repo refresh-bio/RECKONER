@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 0.1
+ * Version: 0.2
  * 
  */
 
@@ -20,75 +20,123 @@
 
 void C_arg::read_args() {
     std::cout << "RECKONER ver. " << VERSION << std::endl;
-    if (num_args == 1) {
+    if (num_args == 1 || num_args == 2 && (strcmp(args[1], "-help") == 0)) {
         print_usage();
         exit(EXIT_SUCCESS);
     }
+
+    bool lastArgumentsGiven = false;
 
     //--------------------------------------------------
     // parse arguments
     //--------------------------------------------------
     for (int it_arg = 1; it_arg < num_args; it_arg++) {
-        if (strcmp(args[it_arg], "-help") == 0) {
-            print_usage();
-            exit(EXIT_SUCCESS);
-        }
-        else if (strcmp(args[it_arg], "-read") == 0) {
+        if (strcmp(args[it_arg], "-read") == 0) {
+            if (lastArgumentsGiven) {
+                params_at_the_beginning();
+            }
             if (it_arg <= num_args - 2) {
                 read_files_names.push_back(args[it_arg + 1]);
                 it_arg++;
             }
             else {
-                std::cout << std::endl << "ERROR: The read file name is not specified" << std::endl << std::endl;
+                std::cerr << std::endl << "ERROR: The read file name is not specified" << std::endl << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
         else if (strcmp(args[it_arg], "-prefix") == 0) {
+            if (lastArgumentsGiven) {
+                params_at_the_beginning();
+            }
             if (it_arg <= num_args - 2) {
                 prefix = args[it_arg + 1];
                 it_arg++;
             }
             else {
-                std::cout << std::endl << "ERROR: The prefix is not specified" << std::endl << std::endl;
+                std::cerr << std::endl << "ERROR: The prefix is not specified" << std::endl << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
         else if (strcmp(args[it_arg], "-kmerlength") == 0) {
+            if (lastArgumentsGiven) {
+                params_at_the_beginning();
+            }
             if (it_arg <= num_args - 2) {
                 kmer_length = atoi(args[it_arg + 1]);
+                is_kmer_length_user_defined = true;
                 it_arg++;
             }
             else {
-                std::cout << std::endl << "ERROR: The k-mer length is not specified" << std::endl << std::endl;
+                std::cerr << std::endl << "ERROR: The k-mer length is not specified" << std::endl << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strcmp(args[it_arg], "-genome") == 0) {
+            if (lastArgumentsGiven) {
+                params_at_the_beginning();
+            }
+            if (it_arg <= num_args - 2) {
+                genome_size = atoi(args[it_arg + 1]);
+                is_genome_size_user_defined = true;
+                it_arg++;
+            }
+            else {
+                std::cerr << std::endl << "ERROR: Genome size is not specified" << std::endl << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
         else if (strcmp(args[it_arg], "-extend") == 0) {
+            if (lastArgumentsGiven) {
+                params_at_the_beginning();
+            }
             if (it_arg <= num_args - 2) {
                 extend = atoi(args[it_arg + 1]);
                 it_arg++;
             }
             else {
-                std::cout << std::endl << "ERROR: The max extension is not specified" << std::endl << std::endl;
+                std::cerr << std::endl << "ERROR: The max extension is not specified" << std::endl << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
         else if (strcmp(args[it_arg], "-threads") == 0) {
+            if (lastArgumentsGiven) {
+                params_at_the_beginning();
+            }
             if (it_arg <= num_args - 2) {
                 n_threads = atoi(args[it_arg + 1]);
                 it_arg++;
             }
             else {
-                std::cout << std::endl << "ERROR: The number of threads is not specified" << std::endl << std::endl;
+                std::cerr << std::endl << "ERROR: The number of threads is not specified" << std::endl << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+        else if (strcmp(args[it_arg], "-memory") == 0) {
+            if (lastArgumentsGiven) {
+                params_at_the_beginning();
+            }
+            if (it_arg <= num_args - 2) {
+                kmc_memory = atoi(args[it_arg + 1]);
+                it_arg++;
+            }
+            else {
+                std::cerr << std::endl << "ERROR: The limit of k-mer counting memory usage is not specified" << std::endl << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
         else if (strcmp(args[it_arg], "-nowrite") == 0) {
+            if (lastArgumentsGiven) {
+                params_at_the_beginning();
+            }
             nowrite = true;
         }
-        else {
-            std::cout << std::endl << "ERROR: Illegal option " << args[it_arg] << std::endl << std::endl;
+        else if (args[it_arg][0] == '-') {
+            std::cerr << std::endl << "ERROR: Illegal option " << args[it_arg] << std::endl << std::endl;
             exit(EXIT_FAILURE);
+        }
+        else {
+            lastArgumentsGiven = true;
+            read_files_names.push_back(args[it_arg]);
         }
     }
 
@@ -97,25 +145,27 @@ void C_arg::read_args() {
     // check options
     //--------------------------------------------------
     if (read_files_names.empty()) {
-        std::cout << std::endl << "ERROR: No read file name is specified." << std::endl << std::endl;
+        std::cerr << std::endl << "ERROR: No read file name is specified." << std::endl << std::endl;
         exit(EXIT_FAILURE);
     }
+    kmc_database_name = read_files_names.front() + LIST_FILE_EXTENSION;
 
     if (prefix.empty()) {
         prefix = ".";
     }
 
-    if (kmer_length == 0) {
-        std::cout << std::endl << "ERROR: k-mer length not specified" << std::endl << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    else if (kmer_length < MIN_KMER_LENGTH) {
-        std::cout << std::endl << "ERROR: k-mer length should be >= " << MIN_KMER_LENGTH << std::endl << std::endl;
+    if (is_kmer_length_user_defined && kmer_length < MIN_KMER_LENGTH) {
+        std::cerr << std::endl << "ERROR: k-mer length should be >= " << MIN_KMER_LENGTH << std::endl << std::endl;
         exit(EXIT_FAILURE);
     }
 
     if (extend < 1) {
-        std::cout << std::endl << "ERROR: The max extension should be >= 1" << std::endl << std::endl;
+        std::cerr << std::endl << "ERROR: The max extension should be >= 1" << std::endl << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    if (n_threads < 1) {
+        std::cerr << std::endl << "ERROR: Number of threads should be >= 1" << std::endl << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -130,7 +180,7 @@ void C_arg::read_args() {
         f_tmp.open(read_files_names[it].c_str());
 
         if (f_tmp.is_open() == false) {
-            std::cout << std::endl << "ERROR: Cannot open " << read_files_names[it] << std::endl << std::endl;
+            std::cerr << std::endl << "ERROR: Cannot open " << read_files_names[it] << std::endl << std::endl;
             exit(EXIT_FAILURE);
         }
 
@@ -192,9 +242,13 @@ void C_arg::read_args() {
         std::cout << "          Compressed:              : " << compressed << std::endl;
     }
     std::cout << "     Log File Name                 : " << log_file_name << std::endl;
-    std::cout << "     K-mer Length                  : " << kmer_length << std::endl;
+    if (is_kmer_length_user_defined) {
+        std::cout << "     K-mer Length                  : " << kmer_length << std::endl;
+    }
+    else {
+        std::cout << "     K-mer Length                  : " << "not defined (will be determined automatically)" << std::endl;
+    }
     std::cout << "     Number of Threads             : " << n_threads << std::endl;
-    std::cout << std::endl;
 
     f_log << "RECKONER ver. " << VERSION << std::endl;
     f_log << std::endl;
@@ -209,9 +263,13 @@ void C_arg::read_args() {
         f_log << "          Compressed:              : " << compressed << std::endl;
     }
     f_log << "     Log File Name                 : " << log_file_name << std::endl;
-    f_log << "     K-mer Length                  : " << kmer_length << std::endl;
+    if (is_kmer_length_user_defined) {
+        f_log << "     K-mer Length                  : " << kmer_length << std::endl;
+    }
+    else {
+        f_log << "     K-mer Length                  : " << "not defined (will be determined automatically)" << std::endl;
+    }
     f_log << "     Number of Threads             : " << n_threads << std::endl;
-    f_log << std::endl;
 }
 
 //----------------------------------------------------------------------
@@ -220,15 +278,29 @@ void C_arg::read_args() {
 
 void C_arg::print_usage() {
     std::cout << std::endl;
-    std::cout << "USAGE: " << args[0] << " <ARGUMENTS>" << std::endl;
+    std::cout << "USAGE: " << args[0] << " <ARGUMENTS> [FASTQ files]" << std::endl;
     std::cout << std::endl;
     std::cout << "-help                   - print this text" << std::endl;
-    std::cout << "-read file              - FASTQ read file name, can be passed many times" << std::endl;
-    std::cout << "-prefix                 - output directory, default current directory (.)" << std::endl;
-    std::cout << "-kmerlength             - length of k-mers" << std::endl;
-    std::cout << "-extend                 - max extend length, default 2" << std::endl;
-    std::cout << "-threads                - number of correcting threads, default number of available virtual cores" << std::endl;
+    std::cout << "-read FASTQ_FILE        - FASTQ read file name, can be passed many times" << std::endl;
+    std::cout << "-prefix DIRECTORY       - output directory, default current directory (.)" << std::endl;
+    std::cout << "-kmerlength K           - length of k-mers" << std::endl;
+    std::cout << "-genome G               - approximate genome size" << std::endl;
+    std::cout << "-memory N               - max k-mer counting memory consumption" << std::endl;
+    std::cout << "-extend N               - max extend length, default 2" << std::endl;
+    std::cout << "-threads N              - number of correcting threads, default number of available virtual cores" << std::endl;
     std::cout << "-nowrite                - no output read" << std::endl;
 
+    std::cout << std::endl << "Instead of using -read option one can specify the input FASTQ files" << std::endl;
+    std::cout << "at the end of the command line." << std::endl;
+
+    std::cout << std::endl << "K-mer length, if not given, is determined automatically. By delivering genome size" << std::endl;
+    std::cout << "one can facilitate and accelerate this determination." << std::endl;
+
     std::cout << std::endl;
+}
+
+void C_arg::params_at_the_beginning() {
+    std::cerr << "ERROR: Input files list should be specified at the end of the command line." << std::endl;
+    std::cerr << "       Alternatively use -read option." << std::endl;
+    exit(EXIT_FAILURE);
 }

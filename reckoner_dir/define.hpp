@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 0.1
+ * Version: 0.2
  * 
  */
 
@@ -37,7 +37,7 @@
 
 
 // definitions
-#define VERSION                    "0.1"
+#define VERSION                    "0.2"
 #define NUM_LINE_FASTQ             4
 #define FASTQ_CHECK                1
 #define NUM_LINE_FASTA             2
@@ -62,8 +62,6 @@
 #define BIT8                       128
 #define BPS_PER_BYTE               4
 #define MAX_NUM_UNSIGNED_CHAR      255
-#define HISTOGRAM_SIZE             10001
-#define DEFAULT_FPR                0.001
 #define PHRED33                    33
 #define PHRED64                    64
 #define MIN_64_SCORE               59
@@ -85,12 +83,11 @@
 #define MAX_CHANGES_IN_REGION_RATIO 0.5
 //#define LIMIT_MODIFICATIONS
 #define MAX_LOW_QS_INDEXES_COMB    6
-#define MAX_FIRST_KMER_POSIBILITIES 5
-#define N_CHUNKS_PER_THREAD        10
+#define MAX_FIRST_KMER_POSSIBILITIES 5
 #define READ_LINES                 4
 #define MAX_EXTEND_CORRECTION_PATHS 100
 #define MAX_FIRST_KMER_CORRECTION_PATHS 30
-#define MAX_N_RATE                 0.3
+#define MAX_N_RATIO                 0.3
 #define CHECK_MAX_CHANGES          10000
 #define MAX_CHECK_FIRST_KMER_NESTING (MAX_LOW_QS_BASES > MAX_LOW_QS_INDEXES_COMB ? MAX_LOW_QS_BASES : MAX_LOW_QS_INDEXES_COMB)
 #define LIST_FILE_EXTENSION        ".lst"
@@ -98,6 +95,22 @@
 #define CORRECTION_FILE_EXTENSION  ".error-correction"
 #define CORRECTED_FILE_EXTENSION   ".corrected"
 #define GZ_FILE_EXTENSION          ".gz"
+#define DEFAULT_CHUNK_SIZE         100000
+#define DEFAULT_MAX_KMC_MEMORY_USAGE 4
+#define DETERMINE_READS_FOR_QUALITY 10000
+#define HISTOGRAM_SIZE              256
+#define MAX_CUTOFF                  5
+#ifdef WIN32 // Windows
+#define KMC_EXECUTABLE_NAME "kmc.exe"
+#define CUTTER_EXECUTABLE_NAME "cutter.exe"
+#define KMC_TOOLS_EXECUTABLE_NAME "kmc_tools.exe"
+#define MAXIMUM_FINDER_EXECUTABLE_NAME "maximum_finder.exe"
+#else // Linux
+#define KMC_EXECUTABLE_NAME "./kmc"
+#define CUTTER_EXECUTABLE_NAME "./cutter"
+#define KMC_TOOLS_EXECUTABLE_NAME "./kmc_tools"
+#define MAXIMUM_FINDER_EXECUTABLE_NAME "./maximum_finder"
+#endif
 
 #define USE_FILE_READER
 

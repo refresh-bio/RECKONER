@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 0.1
+ * Version: 0.2
  * 
  */
 
@@ -49,7 +49,7 @@ void C_correct_read::correct_errors_in_a_read_fastq() {
                 new_solid_region.second = it_kmer - 1;
 
                 if (new_solid_region.second < new_solid_region.first) {
-                    std::cout << std::endl << "ERROR: The second index is smaller than the first" << std::endl << std::endl;
+                    std::cerr << std::endl << "ERROR: The second index is smaller than the first" << std::endl << std::endl;
                     Log::get_stream() << std::endl << "ERROR: The second index is smaller than the first" << std::endl << std::endl;
                     exit(EXIT_FAILURE);
                 }
@@ -67,44 +67,133 @@ void C_correct_read::correct_errors_in_a_read_fastq() {
     }
 
     //--------------------------------------------------
-    // STEP 0-1: remove short solid regions beside short non-solid regions
+    // STEP 0-1: adjust solid regions using quality scores
     //--------------------------------------------------
-    /*
+    // solid_regions_org: indexes that are not modified
+    // when the indices are reached, all kinds of modifications (A/C/G/T) should be made and checked
+    // at least one solid region
     if (solid_regions.size() > 0) {
-       std::vector< std::pair<std::size_t, std::size_t> > solid_regions_tmp;
-       solid_regions_tmp.push_back(solid_regions[0]);
+        // exceptional case: only one solid island that covers the entire read
+        if ((solid_regions.size() != 1) || (solid_regions[0].first != 0) || (solid_regions[0].second != (read_length - kmer_length))) {
+            // at least two solid k-mer islands
+            if (solid_regions.size() > 1) {
+                // check the distance between every two solid k-mer islands
+                bool flag_short_distance(false);
 
-       if (solid_regions.size() > 1) {
-          for (std::size_t it_region = 1; it_region < solid_regions.size(); it_region++) {
-             // short non-solid region to the left
-             if ((solid_regions[it_region].first - solid_regions[it_region - 1].second - 1) < kmer_length) {
-                if ((solid_regions[it_region].second - solid_regions[it_region].first + 1) < MIN_SOLID_LENGTH) {
-                   // (non-solid region length < kmer_length) &&
-                   // (solid_regions[it_region] is too short) &&
-                   // (solid_regions[it_region].second is not the last base of the read)
-                   // -> remove solid_regions[it_region + 1]
-                   // k = 10
-                   // SSSSSNNNNNNNSNNSSSSS
-                   //             ^ Remove it
-                   // do nothing
-                   if (solid_regions[it_region].second != (sequence.length() - 1)) {
-                   }
-                   else {
-                      solid_regions_tmp.push_back(solid_regions[it_region]);
-                   }
+                for (std::size_t it_sr = 0; it_sr < solid_regions.size() - 1; it_sr++) {
+                    if ((solid_regions[it_sr + 1].first - solid_regions[it_sr].second) < kmer_length) {
+                        flag_short_distance = true;
+                    }
                 }
-                else {
-                   solid_regions_tmp.push_back(solid_regions[it_region]);
+
+                if (flag_short_distance == true) {
+                    std::vector< std::pair<std::size_t, std::size_t> > solid_regions_tmp;
+
+                    // each solid island
+                    for (std::size_t it_sr = 0; it_sr < solid_regions.size(); it_sr++) {
+                        // each base in the solid island (0-base)
+                        std::size_t num_low_quality_base(0);
+                        // set an initial value to avoid a compilation warning
+                        std::size_t index_prev_low_quality_base(0);
+                        for (unsigned int it_base = solid_regions[it_sr].first; it_base < solid_regions[it_sr].second + kmer_length; it_base++) {
+                            // a current base has a low quality score
+                            if (((unsigned short int)quality_score[it_base] - quality_score_offset) < QS_CUTOFF) {
+                                num_low_quality_base++;
+
+                                // first low quality base
+                                if (num_low_quality_base == 1) {
+                                    // the low quality base is not in the first k-mer of the solid island
+                                    if (it_base >= (solid_regions[it_sr].first + kmer_length)) {
+                                        // add the left most high quality region to a temporary vector
+                                        std::pair<std::size_t, std::size_t> new_solid_region;
+
+                                        new_solid_region.first = solid_regions[it_sr].first;
+                                        new_solid_region.second = it_base - kmer_length;
+                                        solid_regions_tmp.push_back(new_solid_region);
+                                    }
+                                }
+                                // not first low quality base
+                                else {
+                                    if ((it_base - index_prev_low_quality_base) > kmer_length) {
+                                        std::pair<std::size_t, std::size_t> new_solid_region;
+
+                                        new_solid_region.first = index_prev_low_quality_base + 1;
+                                        new_solid_region.second = it_base - kmer_length;
+                                        solid_regions_tmp.push_back(new_solid_region);
+                                    }
+                                }
+
+                                index_prev_low_quality_base = it_base;
+                            }
+                        }
+
+                        // process the bases to the right of the rightmost low quality base
+                        if (num_low_quality_base > 0) {
+                            if (solid_regions[it_sr].second >= (index_prev_low_quality_base + kmer_length)) {
+                                std::pair<std::size_t, std::size_t> new_solid_region;
+
+                                new_solid_region.first = index_prev_low_quality_base + kmer_length;
+                                new_solid_region.second = solid_regions[it_sr].second;
+                                solid_regions_tmp.push_back(new_solid_region);
+                            }
+                        }
+                        // no low quality base
+                        // add the current solid island
+                        else {
+                            solid_regions_tmp.push_back(solid_regions[it_sr]);
+                        }
+                    }
+
+                    solid_regions.swap(solid_regions_tmp);
                 }
-             }
-             else {
-                solid_regions_tmp.push_back(solid_regions[it_region]);
-             }
-          }
-       }
-       solid_regions = solid_regions_tmp;
+            }
+            // only one solid k-mer island
+            else if (solid_regions.size() == 1) {
+                std::vector< std::pair<std::size_t, std::size_t> > solid_regions_tmp;
+
+                std::size_t num_low_quality_base(0);
+                std::size_t prev_low_quality_index(0);
+
+                // each base in the solid island (0-base)
+                for (unsigned int it_base = solid_regions[0].first; it_base < solid_regions[0].second + kmer_length; it_base++) {
+                    // a current base has a low quality score
+                    if (((unsigned short int)quality_score[it_base] - quality_score_offset) < QS_CUTOFF) {
+                        num_low_quality_base++;
+
+                        // first low quality base
+                        if (num_low_quality_base == 1) {
+                            if ((it_base - solid_regions[0].first) >= (kmer_length + MIN_SOLID_LENGTH - 1)) {
+                                std::pair<std::size_t, std::size_t> new_solid_region;
+
+                                new_solid_region.first = solid_regions[0].first;
+                                new_solid_region.second = it_base - kmer_length;
+                                solid_regions_tmp.push_back(new_solid_region);
+                            }
+
+                            prev_low_quality_index = it_base;
+                        }
+                        // not first low quality base
+                        else {
+                            if ((it_base - prev_low_quality_index) >= (kmer_length + MIN_SOLID_LENGTH)) {
+                                std::pair<std::size_t, std::size_t> new_solid_region;
+
+                                new_solid_region.first = prev_low_quality_index + 1;
+                                new_solid_region.second = it_base - kmer_length;
+                                solid_regions_tmp.push_back(new_solid_region);
+                            }
+
+                            prev_low_quality_index = it_base;
+                        }
+                    }
+                }
+
+                // the above is done only when this procedure does not remove the only solid island
+                if (solid_regions_tmp.size() > 0) {
+                    solid_regions.swap(solid_regions_tmp);
+                }
+            }
+        }
     }
-     */
 
     //--------------------------------------------------
     // STEP 0-2: remove short solid regions
@@ -118,7 +207,7 @@ void C_correct_read::correct_errors_in_a_read_fastq() {
             }
         }
 
-        solid_regions = solid_regions_tmp;
+        solid_regions.swap(solid_regions_tmp);
     }
 
     //--------------------------------------------------
@@ -138,7 +227,7 @@ void C_correct_read::correct_errors_in_a_read_fastq() {
                 }
             }
         }
-        solid_regions = solid_regions_tmp;
+        solid_regions.swap(solid_regions_tmp);
     }
 
     //--------------------------------------------------
@@ -318,9 +407,9 @@ void C_correct_read::correct_errors_in_a_read_fastq() {
             }
         }
     }
-        //--------------------------------------------------
-        // no solid region or short weak regions
-        //--------------------------------------------------
+    //--------------------------------------------------
+    // no solid region or short weak regions
+    //--------------------------------------------------
     else {
         //--------------------------------------------------
         // STEP 2-1: Correct errors in the first k-mer
@@ -366,7 +455,7 @@ void C_correct_read::correct_errors_in_a_read_fastq() {
         // candidiate_path_vector_tmp_tmp: solid k-mers in candidate_path_vector_tmp
 
         // candidates in candidiate_path_vector_tmp_tmp are moved to candidate_path_vector_tmp
-        candidate_path_vector_tmp = candidate_path_vector_tmp_tmp;
+        candidate_path_vector_tmp.swap(candidate_path_vector_tmp_tmp);
         candidate_path_vector_tmp_tmp.clear();
 
         //--------------------------------------------------
@@ -571,11 +660,10 @@ inline void C_correct_read::correct_errors_5_prime_end(const std::size_t index_s
                 candidate_path_vector_tmp.push_back(candidate_path);
             }
             else if (index_start > 0) {
-                const std::size_t max_remaining_changes = (NEOCLEOTIDE[it_alter] == sequence_modified[index_start]
+                const std::size_t max_remaining_changes = static_cast<std::size_t>(NEOCLEOTIDE[it_alter] == sequence_modified[index_start]
                         ? (MAX_CHANGES_IN_REGION_RATIO * index_start) : (MAX_CHANGES_IN_REGION_RATIO * index_start) - 1);
-                C_modification_with_quality modifications[max_read_length];
-                modifications[0].modification = NEOCLEOTIDE[it_alter];
-                modifications[0].quality = kmer_quality;
+                modifications_sequence[0].modification = NEOCLEOTIDE[it_alter];
+                modifications_sequence[0].quality = kmer_quality;
                 // trace  this kmer recursively and update candidate_path_vector_tmp
 
                 std::size_t checked_changes = 0;
@@ -584,7 +672,6 @@ inline void C_correct_read::correct_errors_5_prime_end(const std::size_t index_s
                         index_start,
                         candidate_path_vector_tmp,
                         max_remaining_changes,
-                        modifications,
                         1,
                         checked_changes
                         );
@@ -649,11 +736,10 @@ inline void C_correct_read::correct_errors_3_prime_end(const std::size_t index_s
                 candidate_path_vector_tmp.push_back(candidate_path);
             }
             else if (index_start < (read_length - kmer_length)) {
-                const std::size_t max_remaining_changes = (NEOCLEOTIDE[it_alter] == sequence_modified[index_start]
+                const std::size_t max_remaining_changes = static_cast<std::size_t>(NEOCLEOTIDE[it_alter] == sequence_modified[index_start]
                         ? (MAX_CHANGES_IN_REGION_RATIO * (read_length - index_start)) : (MAX_CHANGES_IN_REGION_RATIO * (read_length - index_start)) - 1);
-                C_modification_with_quality modifications[max_read_length];
-                modifications[0].modification = NEOCLEOTIDE[it_alter];
-                modifications[0].quality = kmer_quality;
+                modifications_sequence[0].modification = NEOCLEOTIDE[it_alter];
+                modifications_sequence[0].quality = kmer_quality;
                 // trace  this kmer recursively and update candidate_path_vector_tmp
                 C_candidate_path temp_path;
 
@@ -664,7 +750,6 @@ inline void C_correct_read::correct_errors_3_prime_end(const std::size_t index_s
                         temp_path,
                         candidate_path_vector_tmp,
                         max_remaining_changes,
-                        modifications,
                         1,
                         checked_changes
                         );
@@ -830,37 +915,36 @@ inline void C_correct_read::correct_errors_first_kmer(std::vector<C_candidate_pa
         }
     }
 
-    if (candidate_path_vector.size() > MAX_FIRST_KMER_POSIBILITIES) {
-        std::vector<C_candidate_path> candidate_path_vector_tmp_tmp(candidate_path_vector);
+    if (candidate_path_vector.size() > MAX_FIRST_KMER_POSSIBILITIES) {
+        std::vector<C_candidate_path> candidate_path_vector_tmp_tmp;
+        candidate_path_vector_tmp_tmp.swap(candidate_path_vector);
 
-        candidate_path_vector.clear();
-
-        // (probability, index)
-        std::vector<std::pair<double, std::vector<C_candidate_path>::iterator> > probabilities;
+        // (rate, index)
+        std::vector<std::pair<double, std::vector<C_candidate_path>::iterator> > rates;
         // each candidate path
 
         for(std::vector<C_candidate_path>::iterator it_path = candidate_path_vector_tmp_tmp.begin(); it_path != candidate_path_vector_tmp_tmp.end(); ++it_path) {
             // each modification
 #ifdef USE_KMER_MEDIAN
-            double prob = it_path->covering_kmers_weight_vector[0];
+            double rate = it_path->covering_kmers_weight_vector[0];
 #else
-            double prob = it_path->covering_kmers_weight;
+            double rate = it_path->covering_kmers_weight;
 #endif
 
             for (std::size_t it_mod = 0; it_mod < (*it_path).modified_bases.size(); it_mod++) {
-                // add quality scores of modified bases
+                // multiply bases' error probabilities
                 if (sequence_modified[(*it_path).modified_bases[it_mod].first] != (*it_path).modified_bases[it_mod].second) {
-                    prob *= convert_quality_to_probability(quality_score[(*it_path).modified_bases[it_mod].first]);
+                    rate *= convert_quality_to_probability(quality_score[(*it_path).modified_bases[it_mod].first]);
                 }
             }
 
-            probabilities.push_back(make_pair(prob, it_path));
+            rates.push_back(make_pair(rate, it_path));
         }
 
-        std::sort(probabilities.begin(), probabilities.end());
+        std::sort(rates.begin(), rates.end());
 
-        for (std::size_t it = 0; it < (std::size_t)MAX_FIRST_KMER_POSIBILITIES; ++it) {
-            candidate_path_vector.push_back(*probabilities[probabilities.size() - it - 1].second);
+        for (std::size_t it = 0; it < (std::size_t)MAX_FIRST_KMER_POSSIBILITIES; ++it) {
+            candidate_path_vector.push_back(*rates[rates.size() - it - 1].second);
         }
     }
 }
@@ -1010,9 +1094,8 @@ inline void C_correct_read::extend_first_kmer_to_right(C_candidate_path& candida
         }
         else if ((read_length - kmer_length) > 1) {
             // trace  this kmer recursively and update candidate_path_vector_tmp
-            C_modification_with_quality modifications[max_read_length];
-            modifications[0].modification = second_kmer[kmer_length - 1];
-            modifications[0].quality = kmer_quality;
+            modifications_sequence[0].modification = second_kmer[kmer_length - 1];
+            modifications_sequence[0].quality = kmer_quality;
 
             std::size_t checked_changes = 0;
             extend_a_kmer_3_prime_end(
@@ -1020,8 +1103,7 @@ inline void C_correct_read::extend_first_kmer_to_right(C_candidate_path& candida
                     1,
                     candidate_path_in,
                     candidate_path_vector_tmp,
-                    (MAX_CHANGES_IN_REGION_RATIO * (read_length - kmer_length)),
-                    modifications,
+                    static_cast<std::size_t>(MAX_CHANGES_IN_REGION_RATIO * (read_length - kmer_length)),
                     1,
                     checked_changes
                     );
@@ -1059,10 +1141,8 @@ inline void C_correct_read::extend_first_kmer_to_right(C_candidate_path& candida
                     }
                     else if ((read_length - kmer_length) > 1) {
                         // trace  this kmer recursively and update candidate_path_vector_tmp
-
-                        C_modification_with_quality modifications[max_read_length];
-                        modifications[0].modification = NEOCLEOTIDE[it_alter];
-                        modifications[0].quality = kmer_quality;
+                        modifications_sequence[0].modification = NEOCLEOTIDE[it_alter];
+                        modifications_sequence[0].quality = kmer_quality;
 
                         std::size_t checked_changes = 0;
                         extend_a_kmer_3_prime_end(
@@ -1070,8 +1150,7 @@ inline void C_correct_read::extend_first_kmer_to_right(C_candidate_path& candida
                                 1,
                                 candidate_path_in,
                                 candidate_path_vector_tmp,
-                                (MAX_CHANGES_IN_REGION_RATIO * (read_length - kmer_length)) - 1,
-                                modifications,
+                                static_cast<std::size_t>(MAX_CHANGES_IN_REGION_RATIO * (read_length - kmer_length)) - 1,
                                 1,
                                 checked_changes
                                 );
@@ -1396,7 +1475,7 @@ void C_correct_read::perform_extend_out_right(std::string& sequence_tmp, C_candi
 // Proceeds correction towards 5' end.
 //----------------------------------------------------------------------
 
-inline void C_correct_read::extend_a_kmer_5_prime_end(const std::string& kmer, const std::size_t index_kmer, std::vector<C_candidate_path>& candidate_path_vector, const std::size_t max_remaining_changes, C_modification_with_quality modifications[], std::size_t nesting, std::size_t& checked_changes) {
+inline void C_correct_read::extend_a_kmer_5_prime_end(const std::string& kmer, const std::size_t index_kmer, std::vector<C_candidate_path>& candidate_path_vector, const std::size_t max_remaining_changes, std::size_t nesting, std::size_t& checked_changes) {
     if (candidate_path_vector.size() > MAX_EXTEND_CORRECTION_PATHS) {
         return;
     }
@@ -1409,19 +1488,19 @@ inline void C_correct_read::extend_a_kmer_5_prime_end(const std::string& kmer, c
     // kmer_new is a solid k-mer
     float kmer_quality;
     if (!is_low_quality_base && query_text(kmer_new, kmer_quality) == true) {
-        modifications[nesting].quality = kmer_quality;
-        modifications[nesting].modification = kmer_new[0];
+        modifications_sequence[nesting].quality = kmer_quality;
+        modifications_sequence[nesting].modification = kmer_new[0];
 
         // if this k-mer is the first k-mer in a read
         // running extend_a_kmer_5_prime_end is not needed any more
         if ((index_kmer - 1) == 0) {
             C_candidate_path candidate_path;
             for (std::size_t it = 0; it <= nesting; ++it) {
-                if (modifications[it].modification != sequence_modified[nesting - it]) {
-                    Single_mod single_modification(nesting - it, modifications[it].modification);
+                if (modifications_sequence[it].modification != sequence_modified[nesting - it]) {
+                    Single_mod single_modification(nesting - it, modifications_sequence[it].modification);
                     candidate_path.modified_bases.push_back(single_modification);
                 }
-                candidate_path.kmers_quality += modifications[it].quality;
+                candidate_path.kmers_quality += modifications_sequence[it].quality;
 #ifdef USE_KMER_MEDIAN
                 candidate_path.covering_kmers_weight_vector.push_back(modifications[it].quality);
 #else
@@ -1436,7 +1515,6 @@ inline void C_correct_read::extend_a_kmer_5_prime_end(const std::string& kmer, c
                     index_kmer - 1,
                     candidate_path_vector,
                     max_remaining_changes,
-                    modifications,
                     nesting + 1,
                     checked_changes
                     );
@@ -1453,19 +1531,19 @@ inline void C_correct_read::extend_a_kmer_5_prime_end(const std::string& kmer, c
                 // kmer_new is solid
                 float kmer_quality;
                 if (query_text(kmer_new, kmer_quality) == true) {
-                    modifications[nesting].quality = kmer_quality;
-                    modifications[nesting].modification = NEOCLEOTIDE[it_alter];
+                    modifications_sequence[nesting].quality = kmer_quality;
+                    modifications_sequence[nesting].modification = NEOCLEOTIDE[it_alter];
 
                     // if this k-mer is the first k-mer in a read
                     // running extend_a_kmer_5_prime_end is not needed any more
                     if ((index_kmer - 1) == 0) {
                         C_candidate_path candidate_path;
                         for (std::size_t it = 0; it <= nesting; ++it) {
-                            if (modifications[it].modification != sequence_modified[nesting - it]) {
-                                Single_mod single_modification(nesting - it, modifications[it].modification);
+                            if (modifications_sequence[it].modification != sequence_modified[nesting - it]) {
+                                Single_mod single_modification(nesting - it, modifications_sequence[it].modification);
                                 candidate_path.modified_bases.push_back(single_modification);
                             }
-                            candidate_path.kmers_quality += modifications[it].quality;
+                            candidate_path.kmers_quality += modifications_sequence[it].quality;
 #ifdef USE_KMER_MEDIAN
                             candidate_path.covering_kmers_weight_vector.push_back(modifications[it].quality);
 #else
@@ -1492,7 +1570,6 @@ inline void C_correct_read::extend_a_kmer_5_prime_end(const std::string& kmer, c
                                 index_kmer - 1,
                                 candidate_path_vector,
                                 max_remaining_changes_new,
-                                modifications,
                                 nesting + 1,
                                 checked_changes
                                 );
@@ -1509,7 +1586,7 @@ inline void C_correct_read::extend_a_kmer_5_prime_end(const std::string& kmer, c
 // Proceeds correction towards 3' end.
 //----------------------------------------------------------------------
 
-inline void C_correct_read::extend_a_kmer_3_prime_end(const std::string& kmer, const std::size_t index_kmer, C_candidate_path& candidate_path, std::vector<C_candidate_path>& candidate_path_vector, const std::size_t max_remaining_changes, C_modification_with_quality modifications[], std::size_t nesting, std::size_t& checked_changes) {
+inline void C_correct_read::extend_a_kmer_3_prime_end(const std::string& kmer, const std::size_t index_kmer, C_candidate_path& candidate_path, std::vector<C_candidate_path>& candidate_path_vector, const std::size_t max_remaining_changes, std::size_t nesting, std::size_t& checked_changes) {
     if (candidate_path_vector.size() > MAX_EXTEND_CORRECTION_PATHS) {
         return;
     }
@@ -1522,19 +1599,19 @@ inline void C_correct_read::extend_a_kmer_3_prime_end(const std::string& kmer, c
     // kmer_new is a solid k-mer
     float kmer_quality;
     if (!is_low_quality_base && query_text(kmer_new, kmer_quality) == true) {
-        modifications[nesting].quality = kmer_quality;
-        modifications[nesting].modification = kmer_new[kmer_length - 1];
+        modifications_sequence[nesting].quality = kmer_quality;
+        modifications_sequence[nesting].modification = kmer_new[kmer_length - 1];
 
         // if this k-mer is the last k-mer in a read
         // running extend_a_kmer_3_prime_end is not needed any more
         if ((index_kmer + 1) == (read_length - kmer_length)) {
             C_candidate_path candidate_path_new(candidate_path);
             for (std::size_t it = 0; it <= nesting; ++it) {
-                if (modifications[it].modification != sequence_modified[read_length - nesting + it - 1]) {
-                    Single_mod single_modification(read_length - nesting + it - 1, modifications[it].modification);
+                if (modifications_sequence[it].modification != sequence_modified[read_length - nesting + it - 1]) {
+                    Single_mod single_modification(read_length - nesting + it - 1, modifications_sequence[it].modification);
                     candidate_path_new.modified_bases.push_back(single_modification);
                 }
-                candidate_path_new.kmers_quality += modifications[it].quality;
+                candidate_path_new.kmers_quality += modifications_sequence[it].quality;
 #ifdef USE_KMER_MEDIAN
                 candidate_path_new.covering_kmers_weight_vector.push_back(modifications[it].quality);
 #else
@@ -1550,7 +1627,6 @@ inline void C_correct_read::extend_a_kmer_3_prime_end(const std::string& kmer, c
                     candidate_path,
                     candidate_path_vector,
                     max_remaining_changes,
-                    modifications,
                     nesting + 1,
                     checked_changes
                     );
@@ -1567,19 +1643,19 @@ inline void C_correct_read::extend_a_kmer_3_prime_end(const std::string& kmer, c
                 // kmer_new is solid
                 float kmer_quality;
                 if (query_text(kmer_new, kmer_quality) == true) {
-                    modifications[nesting].quality = kmer_quality;
-                    modifications[nesting].modification = NEOCLEOTIDE[it_alter];
+                    modifications_sequence[nesting].quality = kmer_quality;
+                    modifications_sequence[nesting].modification = NEOCLEOTIDE[it_alter];
 
                     // if this k-mer is the last k-mer in a read
                     // running extend_a_kmer_3_prime_end is not needed any more
                     if ((index_kmer + 1) == (read_length - kmer_length)) {
                         C_candidate_path candidate_path_new(candidate_path);
                         for (std::size_t it = 0; it <= nesting; ++it) {
-                            if (modifications[it].modification != sequence_modified[read_length - nesting + it - 1]) {
-                                Single_mod single_modification(read_length - nesting + it - 1, modifications[it].modification);
+                            if (modifications_sequence[it].modification != sequence_modified[read_length - nesting + it - 1]) {
+                                Single_mod single_modification(read_length - nesting + it - 1, modifications_sequence[it].modification);
                                 candidate_path_new.modified_bases.push_back(single_modification);
                             }
-                            candidate_path_new.kmers_quality += modifications[it].quality;
+                            candidate_path_new.kmers_quality += modifications_sequence[it].quality;
 #ifdef USE_KMER_MEDIAN
                             candidate_path_new.covering_kmers_weight_vector.push_back(modifications[it].quality);
 #else
@@ -1606,7 +1682,6 @@ inline void C_correct_read::extend_a_kmer_3_prime_end(const std::string& kmer, c
                                 candidate_path,
                                 candidate_path_vector,
                                 max_remaining_changes_new,
-                                modifications,
                                 nesting + 1,
                                 checked_changes
                                 );
@@ -1744,7 +1819,7 @@ std::vector<C_candidate_path>::iterator C_correct_read::choose_best_correction(s
         double best_kmer_quality = 0.0;
 
         // each candidate path
-        for (it_path = candidate_path_vector.begin(); it_path != candidate_path_vector.end(); it_path++) {
+        for (it_path = candidate_path_vector.begin(); it_path != candidate_path_vector.end(); ++it_path) {
             // each modification
             std::size_t it_first_mod = 0;
             double nucleotides_probability = 1.0;
@@ -1755,7 +1830,7 @@ std::vector<C_candidate_path>::iterator C_correct_read::choose_best_correction(s
                 }
             }
             for (std::size_t it_mod = it_first_mod + 1; it_mod < (*it_path).modified_bases.size(); it_mod++) {
-                // add quality scores of modified bases
+                // multiply bases' error probabilities
                 if (sequence[(*it_path).modified_bases[it_mod].first] != (*it_path).modified_bases[it_mod].second) {
                     nucleotides_probability *= convert_quality_to_probability(quality_score[(*it_path).modified_bases[it_mod].first]);
                 }
@@ -1782,8 +1857,8 @@ std::vector<C_candidate_path>::iterator C_correct_read::choose_best_correction(s
             return candidate_path_vector.end();
         }
     }
-        // only one path
-        // correction succeeds
+    // only one path
+    // correction succeeds
     else if (candidate_path_vector.size() == 1) {
         return candidate_path_vector.begin();
     }
@@ -1826,7 +1901,7 @@ void C_correct_read::modify_errors_first_kmer(std::vector<C_candidate_path>& can
                 sequence_modification[(*best_it_path).modified_bases[it_base].first] = (*best_it_path).modified_bases[it_base].second;
                 sequence_modified[(*best_it_path).modified_bases[it_base].first] = (*best_it_path).modified_bases[it_base].second;
 
-                if (candidate_path_vector[0].modified_bases[it_base].first < kmer_length) {
+                if ((*best_it_path).modified_bases[it_base].first < kmer_length) {
                     num_corrected_errors1++;
                 }
                 else {

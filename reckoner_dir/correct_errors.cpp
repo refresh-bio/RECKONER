@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 0.1
+ * Version: 0.2
  * 
  */
 
@@ -30,7 +30,7 @@ void C_correct_errors::correct_errors_in_reads(const C_arg& c_inst_args, const s
     std::size_t NN = 0;
 
 #ifdef USE_THREADS
-#pragma omp parallel num_threads(c_inst_args.n_threads)
+#pragma omp parallel num_threads(static_cast<int>(c_inst_args.n_threads))
 #endif
     {
         std::size_t local_chunk = 0;
@@ -56,6 +56,8 @@ void C_correct_errors::correct_errors_in_reads(const C_arg& c_inst_args, const s
 
         C_correct_read correct_read(quality_score_offset, c_inst_args.kmer_length, c_inst_args.extend, max_read_length, read_file_name, num_corrected_errors_step1_1, num_corrected_errors_step1_2, num_corrected_errors_step1_3, num_corrected_errors_step2_1, num_corrected_errors_step2_2, kmc_file);
 
+        const std::size_t n_chunks = chunks.size();
+
         // perform correction while some chunks are available
         while (true) {
             bool exit_loop = false;
@@ -80,7 +82,7 @@ void C_correct_errors::correct_errors_in_reads(const C_arg& c_inst_args, const s
 
             // check error correction information files
             if (f_error_correction.is_open() == false) {
-                std::cout << std::endl << "ERROR: Cannot open " << get_error_correction_info_file_name(error_correction_info_file_name, local_chunk) << std::endl << std::endl;
+                std::cerr << std::endl << "ERROR: Cannot open " << get_error_correction_info_file_name(error_correction_info_file_name, local_chunk) << std::endl << std::endl;
                 f_log << std::endl << "ERROR: Cannot open " << get_error_correction_info_file_name(error_correction_info_file_name, local_chunk) << std::endl << std::endl;
                 exit(EXIT_FAILURE);
             }
@@ -108,15 +110,13 @@ void C_correct_errors::correct_errors_in_reads(const C_arg& c_inst_args, const s
 #endif
                 std::string& sequence_modification = correct_read.sequence_modification;
 
-                const std::size_t chunk_size = n_chunks == 1 ? 0 : num_reads / (n_chunks - 1);
-                const std::size_t rest_size = n_chunks == 1 ? num_reads : num_reads % (n_chunks - 1);
 
                 std::size_t local_read = 0;
 
                 // perform correction for every read in current chunk
-                while ((local_chunk < (n_chunks - 1) && local_read < chunk_size) || (local_chunk == (n_chunks - 1) && local_read < rest_size)) {
+                while ((local_chunk < (n_chunks - 1) && local_read < chunk_size) || (local_chunk == (n_chunks - 1) && local_read < last_chunk_size)) {
                     if (f_read.eof()) {
-                        std::cout << "Erroneous chunk size (reads missing)." << std::endl;
+                        std::cerr << "ERROR: Erroneous chunk size (reads missing)." << std::endl;
                         f_log << "Erroneous chunk size (reads missing)." << std::endl;
                         exit(EXIT_FAILURE);
                     }
@@ -192,7 +192,7 @@ void C_correct_errors::correct_errors_in_reads(const C_arg& c_inst_args, const s
                         }
 
                         // update num_corrected_reads
-                        if (number_of_Ns < current_read_length * MAX_N_RATE) {
+                        if (number_of_Ns < current_read_length * MAX_N_RATIO) {
                             correct_read.read_length = current_read_length;
                             correct_read.correct_errors_in_a_read_fastq();
 
@@ -226,7 +226,7 @@ void C_correct_errors::correct_errors_in_reads(const C_arg& c_inst_args, const s
                 }
             }
             else {
-                std::cout << std::endl << "ERROR: Cannot open " << read_file_name << std::endl << std::endl;
+                std::cerr << std::endl << "ERROR: Cannot open " << read_file_name << std::endl << std::endl;
                 f_log << std::endl << "ERROR: Cannot open " << read_file_name << std::endl << std::endl;
                 exit(EXIT_FAILURE);
             }
@@ -349,7 +349,7 @@ inline char C_correct_errors::decode_correction_info(unsigned char first_bits, c
     int symbol_id;
 
     if ((first_bits & (BIT8 | 0x40)) != first_bits) {
-        std::cout << std::endl << "ERROR: Illegal result in correction information file " << first_bits << std::endl << std::endl;
+        std::cerr << std::endl << "ERROR: Illegal result in correction information file " << first_bits << std::endl << std::endl;
         f_log << std::endl << "ERROR: Illegal result in correction information file " << first_bits << std::endl << std::endl;
         exit(EXIT_FAILURE);
     }
@@ -384,7 +384,7 @@ void C_correct_errors::write_corrected_reads(const C_arg& c_inst_args, const std
     FileReader f_read;
     f_corrected_read.setFileName(corrected_read_file_name, corrected_read_file_type);
     if (!f_corrected_read.openFile(FileReader::WRITE)) {
-        std::cout << std::endl << "ERROR: Cannot open " << corrected_read_file_name << std::endl << std::endl;
+        std::cerr << std::endl << "ERROR: Cannot open " << corrected_read_file_name << std::endl << std::endl;
         f_log << std::endl << "ERROR: Cannot open " << corrected_read_file_name << std::endl << std::endl;
         exit(EXIT_FAILURE);
     }
@@ -401,7 +401,7 @@ void C_correct_errors::write_corrected_reads(const C_arg& c_inst_args, const std
     f_corrected_read.open(corrected_read_file_name.c_str());
 
     if (f_corrected_read.is_open() == false) {
-        std::cout << std::endl << "ERROR: Cannot open " << corrected_read_file_name << std::endl << std::endl;
+        std::cerr << std::endl << "ERROR: Cannot open " << corrected_read_file_name << std::endl << std::endl;
         f_log << std::endl << "ERROR: Cannot open " << corrected_read_file_name << std::endl << std::endl;
         exit(EXIT_FAILURE);
     }
@@ -412,21 +412,12 @@ void C_correct_errors::write_corrected_reads(const C_arg& c_inst_args, const std
     // process reads
     if (f_read.is_open()) {
 #endif
-        std::size_t chunks_it = 0;
+        std::size_t next_chunk = 0;
 
-        // open error correction information files
+        // correction information files
         std::ifstream f_error_correction_info;
 
-        f_error_correction_info.open(get_error_correction_info_file_name(error_correction_info_file_name, chunks_it).c_str(), std::ios::binary);
-
-        if (f_error_correction_info.is_open() == false) {
-            std::cout << std::endl << "ERROR: Cannot open " << get_error_correction_info_file_name(error_correction_info_file_name, chunks_it) << std::endl << std::endl;
-            f_log << std::endl << "ERROR: Cannot open " << get_error_correction_info_file_name(error_correction_info_file_name, chunks_it) << std::endl << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
         std::string line;
-
         std::string read;
 
 #ifdef USE_FILE_READER
@@ -439,11 +430,10 @@ void C_correct_errors::write_corrected_reads(const C_arg& c_inst_args, const std
             // write the first head lines
             if (line.length() > 0) {
                 line += "\n";
-                f_corrected_read.putLine(line);
+                write_line_successfully(f_corrected_read, line);
             }
             // DNA sequence
             f_read.getLine(read);
-            std::size_t current_read_length = read.length();
 #else
         // header
         getline(f_read, line);
@@ -462,8 +452,9 @@ void C_correct_errors::write_corrected_reads(const C_arg& c_inst_args, const std
         while (!f_read.eof()) {
             // DNA sequence
             getline(f_read, read);
-            std::size_t current_read_length = read.length();
 #endif
+            const std::size_t current_read_length = read.length();
+
             // change sequences to upper case
             transform(read.begin(), read.end(), read.begin(), ::toupper);
 
@@ -485,7 +476,7 @@ void C_correct_errors::write_corrected_reads(const C_arg& c_inst_args, const std
                 }
             }
 
-            const bool too_many_Ns = number_of_Ns >= current_read_length * MAX_N_RATE;
+            const bool too_many_Ns = number_of_Ns >= current_read_length * MAX_N_RATIO;
 
             // modified reads
             std::string read_modified(too_many_Ns ? original_read : read);
@@ -496,30 +487,37 @@ void C_correct_errors::write_corrected_reads(const C_arg& c_inst_args, const std
             if (!f_error_correction_info.get(buffer)) {
                 f_error_correction_info.close();
 
-                ++chunks_it;
-                if (chunks_it == n_chunks) {
+                // there is no error correction information file
+                if (next_chunk == chunks.size()) {
                     if (!f_read.eof()) {
-                        std::cout << std::endl << "ERROR: Unexpected end of error correction info file." << std::endl;
+                        std::cerr << std::endl << "ERROR: Unexpected end of error correction info file. " << std::endl;
                         f_log << std::endl << "ERROR: Unexpected end of error correction info file." << std::endl;
                         exit(EXIT_FAILURE);
                     }
                 }
                 else {
                     // open error correction information files
-                    f_error_correction_info.open(get_error_correction_info_file_name(error_correction_info_file_name, chunks_it).c_str(), std::ios::binary);
+                    f_error_correction_info.open(get_error_correction_info_file_name(error_correction_info_file_name, next_chunk).c_str(), std::ios::binary);
 
                     if (f_error_correction_info.is_open() == false) {
-                        std::cout << std::endl << "ERROR: Cannot open " << get_error_correction_info_file_name(error_correction_info_file_name, chunks_it) << std::endl << std::endl;
-                        f_log << std::endl << "ERROR: Cannot open " << get_error_correction_info_file_name(error_correction_info_file_name, chunks_it) << std::endl << std::endl;
+                        std::cerr << std::endl << "ERROR: Cannot open " << get_error_correction_info_file_name(error_correction_info_file_name, next_chunk) << std::endl << std::endl;
+                        f_log << std::endl << "ERROR: Cannot open " << get_error_correction_info_file_name(error_correction_info_file_name, next_chunk) << std::endl << std::endl;
                         exit(EXIT_FAILURE);
                     }
 
                     if (!f_error_correction_info.get(buffer)) {
-                        std::cout << std::endl << "ERROR: The file " << get_error_correction_info_file_name(error_correction_info_file_name, chunks_it) << " is empty" << std::endl << std::endl;
-                        f_log << std::endl << "ERROR: The file " << get_error_correction_info_file_name(error_correction_info_file_name, chunks_it) << " is empty" << std::endl << std::endl;
+                        std::cerr << std::endl << "ERROR: The file " << get_error_correction_info_file_name(error_correction_info_file_name, next_chunk) << " is empty" << std::endl << std::endl;
+                        f_log << std::endl << "ERROR: The file " << get_error_correction_info_file_name(error_correction_info_file_name, next_chunk) << " is empty" << std::endl << std::endl;
                         exit(EXIT_FAILURE);
                     }
                 }
+
+                // remove previous file
+                if (next_chunk != 0) {
+                    remove_error_correction_info_file(error_correction_info_file_name, next_chunk - 1);
+                }
+                ++next_chunk;
+
             }
 
             // make new reads
@@ -535,7 +533,7 @@ void C_correct_errors::write_corrected_reads(const C_arg& c_inst_args, const std
                 // increment indexes
                 if (((it_mod % BPS_PER_BYTE) == (BPS_PER_BYTE - 1)) && (it_mod != (current_read_length - 1))) {
                     if (!f_error_correction_info.get(buffer)) {
-                        std::cout << std::endl << "ERROR: The size of " << error_correction_info_file_name << " is wrong" << std::endl << std::endl;
+                        std::cerr << std::endl << "ERROR: The size of " << error_correction_info_file_name << " is wrong" << std::endl << std::endl;
                         f_log << std::endl << "ERROR: The size of " << error_correction_info_file_name << " is wrong" << std::endl << std::endl;
                         exit(EXIT_FAILURE);
                     }
@@ -544,17 +542,17 @@ void C_correct_errors::write_corrected_reads(const C_arg& c_inst_args, const std
 #ifdef USE_FILE_READER
             // write new reads to output files
             read_modified += "\n";
-            f_corrected_read.putLine(read_modified);
+            write_line_successfully(f_corrected_read, read_modified);
 
             // "+"
             f_read.getLine(line);
             line += "\n";
-            f_corrected_read.putLine(line);
+            write_line_successfully(f_corrected_read, line);
 
             // quality score
             f_read.getLine(line);
             line += "\n";
-            f_corrected_read.putLine(line);
+            write_line_successfully(f_corrected_read, line);
 #else
             // write new reads to output files
             f_corrected_read << read_modified << "\n";
@@ -575,6 +573,11 @@ void C_correct_errors::write_corrected_reads(const C_arg& c_inst_args, const std
             }
 #endif
         }
+
+        f_error_correction_info.close();
+
+        // remove last file
+        remove_error_correction_info_file(error_correction_info_file_name, next_chunk - 1);
     }
 
     // close read files
@@ -590,14 +593,33 @@ void C_correct_errors::write_corrected_reads(const C_arg& c_inst_args, const std
 
 
 //----------------------------------------------------------------------
-// Removes unnecessary temporary files.
+// Removes unnecessary temporary file.
 //----------------------------------------------------------------------
 
-void C_correct_errors::remove_error_correction_info_files(const C_arg& c_inst_args, const std::string& error_correction_info_file_name) {
-    for (std::size_t it = 0; it < n_chunks; ++it) {
-        remove(get_error_correction_info_file_name(error_correction_info_file_name, it).c_str());
+void C_correct_errors::remove_error_correction_info_file(const std::string& error_correction_info_file_name, const std::size_t file_index) {
+    remove(get_error_correction_info_file_name(error_correction_info_file_name, file_index).c_str());
+}
+
+
+
+
+//----------------------------------------------------------------------
+// Writes line to file and checks the operation success.
+//----------------------------------------------------------------------
+
+inline void C_correct_errors::write_line_successfully(FileReader& output_file, const std::string& line) {
+    if (!output_file.putString(line)) {
+        std::ofstream& f_log = Log::get_stream();
+        std::string output_file_name;
+        output_file.getFileName(output_file_name);
+
+        std::cerr << std::endl << "ERROR: Cannot write to file " << output_file_name << ". Probably disk is full." << std::endl << std::endl;
+        f_log << std::endl << "ERROR: Cannot write to file " << output_file_name << ". Probably disk is full." << std::endl << std::endl;
+
+        exit(EXIT_FAILURE);
     }
 }
+
 
 
 

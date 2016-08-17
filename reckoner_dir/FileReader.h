@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 0.1
+ * Version: 0.2
  * 
  */
 
@@ -31,11 +31,15 @@ public:
 
     bool getLine(char* outBuff);
     bool getLine(std::string& outString);
-    bool putLine(const std::string& buff);
+    bool putString(const std::string& buff);
 
     void setFileName(const std::string& _fileName, FileType _fileType);
     bool openFile(OpenMode openMode);
     void close();
+
+    void getFileName(std::string& _fileName) {
+        _fileName = fileName;
+    }
 
     std::size_t tellPos();
     int seekPos(std::size_t pos);

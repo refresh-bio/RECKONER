@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 0.1
+ * Version: 0.2
  * 
  */
 
@@ -30,7 +30,7 @@ void C_check_read::check_read_file(const C_arg& c_inst_args, const std::string& 
     std::ifstream f_read(read_file_name.c_str());
     if (!f_read.is_open()) {
 #endif
-        std::cout << "ERROR: Cannot open " << read_file_name << " for read check" << std::endl;
+        std::cerr << "ERROR: Cannot open " << read_file_name << " for read check" << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -42,6 +42,12 @@ void C_check_read::check_read_file(const C_arg& c_inst_args, const std::string& 
 
     std::string line;
 
+#ifdef USE_FILE_READER
+    chunks.push_back(f_read.tellPos());
+#else
+    chunks.push_back(f_read.tellg());
+#endif
+
     // header
 #ifdef USE_FILE_READER
     while (f_read.getLine(line)) {
@@ -50,8 +56,6 @@ void C_check_read::check_read_file(const C_arg& c_inst_args, const std::string& 
 
     while (!f_read.eof()) {
 #endif
-        // increment the number of reads
-        num_reads++;
 
         // sequence
 #ifdef USE_FILE_READER
@@ -89,90 +93,53 @@ void C_check_read::check_read_file(const C_arg& c_inst_args, const std::string& 
             }
         }
 
+        // increment the number of reads
+        num_reads++;
+
+        if (num_reads % chunk_size == 0) {
+#ifdef USE_FILE_READER
+            chunks.push_back(f_read.tellPos());
+#else
+            chunks.push_back(f_read.tellg());
+#endif
+        }
+
 #ifndef USE_FILE_READER
         // header
         getline(f_read, line);
 #endif
     }
 
+    last_chunk_size = num_reads % chunk_size;
 
-    if (min_quality_score < MIN_SCORE) {
-        std::cout << "ERROR: Illegal quality score" << std::endl << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    else if (min_quality_score < MIN_64_SCORE) {
-        quality_score_offset = PHRED33;
-    }
-    else {
-        quality_score_offset = PHRED64;
+    // no elements in last chunk, so chunks.back() indicates end of the file
+    if (last_chunk_size == 0) {
+        chunks.pop_back();
+
+        // now the last chunk is full, not empty
+        last_chunk_size = chunk_size;
+    } else if (num_reads == 0) {
+        chunks.clear();
     }
 
     f_read.close();
 
-    create_chunks(c_inst_args, read_file_name, read_file_type, num_reads);
+    if (min_quality_score < MIN_SCORE) {
+        std::cerr << "ERROR: Illegal quality score" << std::endl << std::endl;
+        exit(EXIT_FAILURE);
+    } else if (min_quality_score < MIN_64_SCORE) {
+        quality_score_offset = PHRED33;
+    } else {
+        quality_score_offset = PHRED64;
+    }
 
     std::cout << "     Number of reads     : " << num_reads << std::endl;
     std::cout << "     Maximum read length : " << max_read_length << std::endl;
     std::cout << "     Quality score offset: " << quality_score_offset << std::endl;
-    std::cout << "     Checking input read files: done" << std::endl << std::endl;
+    std::cout << "     Checking input read files: done" << std::endl;
 
     f_log << "     Number of reads     : " << num_reads << std::endl;
     f_log << "     Maximum read length : " << max_read_length << std::endl;
     f_log << "     Quality score offset: " << quality_score_offset << std::endl;
-    f_log << "     Checking input read files: done" << std::endl << std::endl;
-}
-
-//----------------------------------------------------------------------
-// Reads input file and splits it into chunks for a parallel processing.
-//----------------------------------------------------------------------
-
-void C_check_read::create_chunks(const C_arg& c_inst_args, const std::string& read_file_name, const FileReader::FileType read_file_type, std::size_t num_reads) {
-    const std::size_t n_chunks = N_CHUNKS_PER_THREAD * c_inst_args.n_threads;
-    const std::size_t chunk_size = n_chunks == 1 ? 0 : num_reads / (n_chunks - 1);
-
-#ifdef USE_FILE_READER
-    FileReader f_read;
-#else
-    std::ifstream f_read;
-#endif   
-
-    chunks.reserve(n_chunks);
-    if (chunk_size == 0) {
-#ifdef USE_FILE_READER
-        chunks.push_back(0);
-#else
-        chunks.push_back(f_read.beg);
-#endif
-    }
-    else {
-#ifdef USE_FILE_READER
-        f_read.setFileName(read_file_name, read_file_type);
-        if (!f_read.openFile(FileReader::READ)) {
-#else
-        f_read.open(read_file_name.c_str());
-        if (!f_read.is_open()) {
-#endif
-            std::cout << "ERROR: Cannot open " << read_file_name << " for chunkify" << std::endl;
-            exit(EXIT_FAILURE);
-        }
-
-        for (std::size_t it = 0; it < num_reads; ++it) {
-            if (it % chunk_size == 0) {
-#ifdef USE_FILE_READER
-                chunks.push_back(f_read.tellPos());
-#else
-                chunks.push_back(f_read.tellg());
-#endif
-            }
-            std::string temp;
-            for (int i = 0; i < READ_LINES; ++i) {
-#ifdef USE_FILE_READER
-                f_read.getLine(temp);
-#else
-                getline(f_read, temp);
-#endif
-            }
-        }
-        f_read.close();
-    }
+    f_log << "     Checking input read files: done" << std::endl;
 }

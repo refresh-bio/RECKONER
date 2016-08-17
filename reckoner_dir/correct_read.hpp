@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 0.1
+ * Version: 0.2
  * 
  */
 
@@ -95,19 +95,24 @@ public:
             std::size_t& _num_corrected_errors_step1_1, std::size_t& _num_corrected_errors_step1_2,
             std::size_t& _num_corrected_errors_step1_3, std::size_t& _num_corrected_errors_step2_1,
             std::size_t& _num_corrected_errors_step2_2, CKMCFile& _kmc_file) :
-    read_length(0),
-    quality_score_offset(_quality_score_offset),
-    kmer_length(_kmer_length),
-    max_extension(_max_extension),
-    max_read_length(_max_read_length),
-    sequence_modification(_max_read_length, '0'),
-    kmc_file(_kmc_file),
-    kmer_api(_kmer_length),
-    num_corrected_errors_step1_1(_num_corrected_errors_step1_1),
-    num_corrected_errors_step1_2(_num_corrected_errors_step1_2),
-    num_corrected_errors_step1_3(_num_corrected_errors_step1_3),
-    num_corrected_errors_step2_1(_num_corrected_errors_step2_1),
-    num_corrected_errors_step2_2(_num_corrected_errors_step2_2) {
+            read_length(0),
+            quality_score_offset(_quality_score_offset),
+            kmer_length(_kmer_length),
+            max_extension(_max_extension),
+            max_read_length(_max_read_length),
+            sequence_modification(_max_read_length, '0'),
+            kmc_file(_kmc_file),
+            kmer_api(_kmer_length),
+            modifications_sequence(new C_modification_with_quality[_max_read_length]),
+            num_corrected_errors_step1_1(_num_corrected_errors_step1_1),
+            num_corrected_errors_step1_2(_num_corrected_errors_step1_2),
+            num_corrected_errors_step1_3(_num_corrected_errors_step1_3),
+            num_corrected_errors_step2_1(_num_corrected_errors_step2_1),
+            num_corrected_errors_step2_2(_num_corrected_errors_step2_2) {
+    }
+
+    ~C_correct_read() {
+        delete[] modifications_sequence;
     }
 
     void correct_errors_in_a_read_fastq();
@@ -125,6 +130,9 @@ private:
     CKMCFile& kmc_file;
     CKmerAPI kmer_api;
 
+    // sequence of changes in read introduced by recursive functions
+    C_modification_with_quality* modifications_sequence;
+
     std::size_t& num_corrected_errors_step1_1;
     std::size_t& num_corrected_errors_step1_2;
     std::size_t& num_corrected_errors_step1_3;
@@ -141,8 +149,8 @@ private:
     void correct_errors_3_prime_end(const std::size_t index_start);
     void correct_errors_first_kmer(std::vector<C_candidate_path>& candidate_path_vector);
     void extend_a_kmer(const std::string& kmer, const std::size_t index_kmer, const std::size_t index_last_mod, C_candidate_path& current_path, std::vector<C_candidate_path>& candidate_path_vector);
-    void extend_a_kmer_5_prime_end(const std::string& kmer, const std::size_t index_kmer, std::vector<C_candidate_path>& candidate_path_vector, const std::size_t max_remaining_changes, C_modification_with_quality modifications[], std::size_t nesting, std::size_t& checked_changes);
-    void extend_a_kmer_3_prime_end(const std::string& kmer, const std::size_t index_kmer, C_candidate_path& candidate_path, std::vector<C_candidate_path>& candidate_path_vector, const std::size_t max_remaining_changes, C_modification_with_quality modifications[], std::size_t nesting, std::size_t& checked_changes);
+    void extend_a_kmer_5_prime_end(const std::string& kmer, const std::size_t index_kmer, std::vector<C_candidate_path>& candidate_path_vector, const std::size_t max_remaining_changes, std::size_t nesting, std::size_t& checked_changes);
+    void extend_a_kmer_3_prime_end(const std::string& kmer, const std::size_t index_kmer, C_candidate_path& candidate_path, std::vector<C_candidate_path>& candidate_path_vector, const std::size_t max_remaining_changes, std::size_t nesting, std::size_t& checked_changes);
     void perform_extend_out_left(std::string& sequence_tmp, C_candidate_path& candidate_path, std::vector<C_candidate_path>& candidate_path_vector_tmp_tmp);
     void perform_extend_out_right(std::string& sequence_tmp, C_candidate_path& candidate_path, std::vector<C_candidate_path>& candidate_path_vector_tmp_tmp);
     void extend_out_left(const std::string& kmer, const std::size_t num_extend, const std::size_t extend_amount, bool& extension_success);

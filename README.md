@@ -5,33 +5,49 @@ on the error correction algorithm BLESS and utilizes the following tools:
 + KMC2 for k-mer counting,
 + kmc_tools for trimming a k-mer database.
 
+RECKONER is available for Linux and Windows.
+
 ### Compilation
-RECKONER is available for Linux. To compile RECKONER
-use g++ version 4.9.2 or newer by typing "make",
-executable files will be created in the "bin" directory.
+To compile RECKONER in Linux use g++ version 4.9.2 or newer
+by typing "make" in the project directory, as a result
+there will be generated executable files in the "bin" directory.
+
+To compile RECKONER in Windows open file "RECKONER.sln"
+in Visual Studio 2013, select "Release" from the drop-down list.
+Then click "BUILD" and "Build Solution" from the main menu.
 
 ### Running
-To run RECKONER execute script "run.sh" from the "bin" directory (typically
-by typing "./run.sh ARGUMENTS").
+To run RECKONER in Linux execute file "reckoner" from the "bin" directory 
+(typically by typing "./reckoner ARGUMENTS").
+
+To run RECKONER in Windows execute file "reckoner.exe" from the "bin" directory
+(typically by typing "reckoner.exe ARGUMENTS" from the command line).
 
 As ARGUMENTS type the following:
-+ k (k-mer length),
-+ output directory; if it does not exist, it will be created,
-+ number of threads,
-+ list of input FASTQ files.
++ -help - prints short help,
++ -read FASTQ_FILE - FASTQ read file name (possibly gzipped), can be passed many times,
++ -prefix DIRECTORY - output directory, default current directory (.),
++ -kmerlength K - length of k-mers (optional),
++ -genome G - approximate genome size (optional),
++ -memory N - max k-mer counting memory consumption in GB, default 4,
++ -extend N - max extend length, default 2,
++ -threads N - number of correcting threads, default number of available virtual cores,
++ -nowrite - no output read.
 
-After running, RECKONER will perform the following actions:
-+ k-mer counting with KMC2,
-+ determining of a cutoff threshold,
-+ k-mer database trimming and converting,
-+ read error correcting.
+If k-mer length is not given it is determined automatically.
+Passing the approximate genome size may slightly improve
+k-mer length calculation.
 
 Result files will be created in the output directory with a "corrected" suffix.
 
+Instead of using -read option the input FASTQ files
+can be specified at the end of the command line.
+
 Examples:
 ```
-./run.sh 25 results 16 SRR088579.fastq.gz
-./run.sh 30 results 8 ERR729973.fastq ERR729974.fastq
+./reckoner -kmerlength 25 -prefix results -threads 16 -read SRR088579.fastq.gz
+./reckoner -read ERR729973.fastq -read ERR729974.fastq
+./reckoner -kmerlength 30 ERR729973.fastq ERR729974.fastq
 ```
 
 ### Miscellaneous

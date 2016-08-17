@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 0.1
+ * Version: 0.2
  * 
  */
 
@@ -18,14 +18,14 @@
 
 void Log::open_log_file(const std::string& file_name) {
     if (f_log.is_open()) {
-        std::cout << "ERROR: Cannot open log file - file has been already opened." << std::endl;
+        std::cerr << "ERROR: Cannot open log file - file has been already opened." << std::endl;
         exit(EXIT_FAILURE);
     }
 
     f_log.open(file_name.c_str());
 
     if (!f_log.is_open()) {
-        std::cout << "ERROR: Cannot open log file." << std::endl;
+        std::cerr << "ERROR: Cannot open log file." << std::endl;
         exit(EXIT_FAILURE);
     }
 }
@@ -36,7 +36,7 @@ void Log::open_log_file(const std::string& file_name) {
 
 std::ofstream& Log::get_stream() {
     if (!f_log.is_open()) {
-        std::cout << "ERROR: Log file has not been opened." << std::endl;
+        std::cerr << "ERROR: Log file has not been opened." << std::endl;
         exit(EXIT_FAILURE);
     }
     return f_log;

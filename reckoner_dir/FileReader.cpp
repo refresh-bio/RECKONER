@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 0.1
+ * Version: 0.2
  * 
  */
 
@@ -177,10 +177,10 @@ bool FileReader::getLine(std::string& outString) {
 }
 
 //----------------------------------------------------------------------
-// Stores the input line in the file.
+// Stores the input string in the file.
 //----------------------------------------------------------------------
 
-bool FileReader::putLine(const std::string& buff) {
+bool FileReader::putString(const std::string& buff) {
     if (fileType == RAW) {
         return fwrite(buff.c_str(), sizeof (char), buff.length(), file) == buff.length();
     }
@@ -307,10 +307,6 @@ void FileReader::close() {
             gzclose(gz_file);
             gz_file = NULL;
         }
-    }
-    else {
-        std::cerr << "File type not defined." << std::endl;
-        exit(EXIT_FAILURE);
     }
 }
 

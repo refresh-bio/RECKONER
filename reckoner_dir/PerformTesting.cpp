@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 0.1
+ * Version: 0.2
  * 
  */
 
@@ -23,8 +23,14 @@
 void PerformTasks::perform_check_read(const C_arg& c_inst_args, C_time& c_inst_time, std::vector<C_check_read>& check_inputs) {
     std::ofstream& f_log = Log::get_stream();
 
-    std::cout << "Checking input read files" << std::endl;
-    f_log << "Checking input read files" << std::endl;
+    std::cout << std::endl;
+    std::cout << "##################################################" << std::endl;
+    std::cout << "CHECKING INPUT READ FILES" << std::endl;
+    std::cout << "##################################################" << std::endl;
+    f_log << std::endl;
+    f_log << "##################################################" << std::endl;
+    f_log << "CHECKING INPUT READ FILES" << std::endl;
+    f_log << "##################################################" << std::endl;
 
     for (std::size_t it = 0; it < c_inst_args.read_files_names.size(); ++it) {
         std::cout << c_inst_args.read_files_names[it] << std::endl;
@@ -141,7 +147,7 @@ void PerformTasks::perform_correction(const C_arg& c_inst_args, C_time& c_inst_t
     f_log << "Correcting errors in reads" << std::endl;
 
     CKMCFile kmc_file;
-    if (!kmc_file.OpenForRA(c_inst_args.read_files_names.front() + LIST_FILE_EXTENSION)) {
+    if (!kmc_file.OpenForRA(c_inst_args.kmc_database_name)) {
         std::cerr << "ERROR: cannot open KMC files." << std::endl;
         exit(EXIT_FAILURE);
     }
@@ -191,9 +197,6 @@ void PerformTasks::perform_correction(const C_arg& c_inst_args, C_time& c_inst_t
 
         time(&rawtime);
         c_inst_time.vector_end_write_corrected_reads.push_back(asctime(localtime(&rawtime)));
-
-        // remove error correction information files
-        correct_errors[it].remove_error_correction_info_files(c_inst_args, c_inst_args.error_correction_info_files_names[it]);
     }
 
     // summarize output results
