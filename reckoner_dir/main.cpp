@@ -4,14 +4,16 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 0.1
+ * Version: 0.2
  * 
  */
 
+#include "DetermineParameters.hpp"
 #include "time.hpp"
 #include "parse_args.hpp"
 #include "check_inputs.hpp"
 #include "PerformTesting.h"
+#include "PrepareKMCDb.h"
 #include <vector>
 
 
@@ -32,7 +34,22 @@ int main(int argc, char** argv) {
     // check input read files
     performTesting.perform_check_read(c_inst_args, c_inst_time, check_inputs);
 
-    // corrent errors in reads
+    DetermineParameters determineParameters(c_inst_args, c_inst_time, check_inputs);
+    determineParameters.perform_determine_parameters();
+
+    PrepareKMCDb prepareKMCDb;
+    prepareKMCDb.run(c_inst_args);
+
+    std::cout << std::endl;
+    std::cout << "##################################################" << std::endl;
+    std::cout << "CORRECTING ERRORS" << std::endl;
+    std::cout << "##################################################" << std::endl;
+    Log::get_stream() << std::endl;
+    Log::get_stream() << "##################################################" << std::endl;
+    Log::get_stream() << "CORRECTING ERRORS" << std::endl;
+    Log::get_stream() << "##################################################" << std::endl;
+
+    // correct errors in reads
     performTesting.perform_correction(c_inst_args, c_inst_time, check_inputs);
 
     return (EXIT_SUCCESS);
