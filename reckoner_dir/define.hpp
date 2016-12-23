@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 0.2
+ * 0.2.1
  * 
  */
 
@@ -37,7 +37,7 @@
 
 
 // definitions
-#define VERSION                    "0.2"
+#define VERSION                    "0.2.1"
 #define NUM_LINE_FASTQ             4
 #define FASTQ_CHECK                1
 #define NUM_LINE_FASTA             2
