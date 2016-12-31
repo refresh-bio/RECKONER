@@ -512,7 +512,7 @@ public:
 		}
 
 		// number of bytes used to store the k-mer in the 0-th row
-		const uint32 size_in_byte = ((kmer_length + byte_alignment) / 4) / no_of_rows;
+        const uint32 size_in_byte = ((kmer_length + byte_alignment) / 4) - 8 * (no_of_rows - 1);
 		uchar* byte1;
 		uchar* byte2;
 
