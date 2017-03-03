@@ -4,12 +4,14 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* 0.2.1
+* Version: 1.0
 *
 */
 
 #include "HistogramAnalyzer.h"
 #include "define.hpp"
+
+
 
 bool HistogramAnalyzer::buildHistogram(const std::string& kmcDatabase, const unsigned histogramSize, std::vector<uint64>& histogram) {
     CKMCFile kmcFile;
@@ -41,7 +43,7 @@ bool HistogramAnalyzer::buildHistogram(const std::string& kmcDatabase, const uns
     return true;
 }
 
-uint64 HistogramAnalyzer::getCutoffThreshold(const std::string& kmcDatabase) {
+unsigned HistogramAnalyzer::getCutoffThreshold(const std::string& kmcDatabase) {
     std::vector<uint64> histogram;
 
     if (!buildHistogram(kmcDatabase, HISTOGRAM_SIZE, histogram)) {
@@ -65,7 +67,7 @@ uint64 HistogramAnalyzer::getCutoffThreshold(const std::string& kmcDatabase) {
     return (cutoff > MAX_CUTOFF ? MAX_CUTOFF : cutoff);
 }
 
-uint64 HistogramAnalyzer::getHistogramPeak(const std::string& kmcDatabase) {
+unsigned HistogramAnalyzer::getHistogramPeak(const std::string& kmcDatabase) {
     std::vector<uint64> histogram;
 
     if (!buildHistogram(kmcDatabase, HISTOGRAM_SIZE, histogram)) {

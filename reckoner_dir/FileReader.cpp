@@ -4,9 +4,11 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * 0.2.1
+ * Version: 1.0
  * 
  */
+
+#define _CRT_SECURE_NO_DEPRECATE
 
 #include "FileReader.h"
 #include <zlib.h>
@@ -15,6 +17,8 @@
 #include <string>
 #include <cstring>
 #include <cassert>
+
+
 
 //----------------------------------------------------------------------
 // Finds the EOL in a buffer.
@@ -185,7 +189,7 @@ bool FileReader::putString(const std::string& buff) {
         return fwrite(buff.c_str(), sizeof (char), buff.length(), file) == buff.length();
     }
     else if (fileType == GZIP) {
-        return static_cast<std::size_t> (gzwrite(gz_file, buff.c_str(), sizeof (char) * buff.length())) == buff.length();
+        return static_cast<std::size_t> (gzwrite(gz_file, buff.c_str(), static_cast<unsigned>(sizeof (char) * buff.length()))) == buff.length();
     }
     else {
         std::cerr << "File type not defined." << std::endl;
@@ -197,8 +201,8 @@ bool FileReader::putString(const std::string& buff) {
 // Returns the current file cursor.
 //----------------------------------------------------------------------
 
-std::size_t FileReader::tellPos() {
-    std::size_t filePos = 0;
+long FileReader::tellPos() {
+    long filePos = 0;
 
     if (fileType == RAW) {
         filePos = ftell(file);
@@ -214,14 +218,14 @@ std::size_t FileReader::tellPos() {
     if (filePos == 0) {
         return filePos;
     }
-    return filePos - fileBytesRead + currentPos;
+    return filePos - static_cast<long>(fileBytesRead) + static_cast<long>(currentPos);
 }
 
 //----------------------------------------------------------------------
 // Moves the file cursor to the specified position.
 //----------------------------------------------------------------------
 
-int FileReader::seekPos(std::size_t pos) {
+long FileReader::seekPos(long pos) {
     if (fileType == RAW) {
         return fseek(file, pos, SEEK_SET);
     }
@@ -319,7 +323,7 @@ inline std::size_t FileReader::fileRead(char* outBuff, std::size_t elemSize, std
         return fread(outBuff, elemSize, elemCount, file);
     }
     else if (fileType == GZIP) {
-        return gzread(gz_file, outBuff, sizeof (char) * elemCount);
+        return gzread(gz_file, outBuff, static_cast<unsigned>(sizeof (char) * elemCount));
     }
     else {
         std::cerr << "File type not defined." << std::endl;

@@ -4,21 +4,31 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* 0.2.1
+* Version: 1.0
 *
 */
 
 #ifndef PREPAREKMCDB_H
 #define	PREPAREKMCDB_H
 
-
-
 #include "parse_args.hpp"
+#include "time.hpp"
+
 
 
 class PrepareKMCDb {
+private:
+    const C_arg& c_inst_args;
+
 public:
-    void run(const C_arg& c_inst_args);
+    PrepareKMCDb(const C_arg& _c_inst_args) : c_inst_args(_c_inst_args) {}
+
+    void countKmers();
+    unsigned determineCutoff();
+    void filterKmers(unsigned cutoff);
+
+    void removeKMCDatabase();
+    void removeFilteredKMCDatabase();
 };
 
 #endif	/* PREPAREKMCDB_H */

@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * 0.2.1
+ * Version: 1.0
  * 
  */
 
@@ -14,6 +14,8 @@
 #include <zlib.h>
 #include <cstdlib>
 #include <string>
+
+
 
 #define BUFFER_SIZE (8 << 20)
 #define GZIP_BUFFER_SIZE (8 << 20)
@@ -41,8 +43,8 @@ public:
         _fileName = fileName;
     }
 
-    std::size_t tellPos();
-    int seekPos(std::size_t pos);
+    long tellPos();
+    long seekPos(long pos);
     bool eof() const;
 
     FileReader() : file(NULL), gz_file(NULL), fileType(NOT_DEFINED), leaveSymbols(0), currentPos(0), fileBytesRead(0), eofReached(false), windowsNewLine(false) {

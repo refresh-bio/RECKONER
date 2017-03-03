@@ -4,14 +4,12 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* 0.2.1
+* Version: 1.0
 *
 */
 
 #ifndef RUNEXTERNAL_H
 #define	RUNEXTERNAL_H
-
-
 
 #ifdef WIN32
 #define NOMINMAX // to use std::max
@@ -29,6 +27,8 @@
 #include <sstream>
 #include <cstdio>
 
+
+
 class RunExternal {
     std::size_t nThreads;
     std::size_t maxMemory;
@@ -41,13 +41,13 @@ public:
     bool runKMC(int kmerLength, const std::vector<std::string>& inputFilesNames, const std::string& outputFileName, const std::string& tempName);
     bool runKMCToBuffer(std::size_t kmerLength, const std::vector<std::string>& inputFilesNames, const std::string& outputFileName, const std::string& tempName, char* buffer, const int bufferSize);
 
-    void removeKMCFiles(const std::string& fileName);
+    static void removeKMCFiles(const std::string& fileName);
 
 private:
 #ifdef WIN32 // Windows
 
     // buffer - output for child process' stdout and stderr, if NULL, the result is sent to stdout
-    bool runCommand(const std::string& command, const std::string& args, unsigned long& processResult, char* buffer = NULL, const int bufferSize = 0);
+    bool runCommand(std::string command, const std::string& args, unsigned long& processResult, char* buffer = NULL, const int bufferSize = 0);
 
     bool createPipe(HANDLE& pipeReadHandle, HANDLE& pipeWriteHandle);
     void destroyPipe(HANDLE& pipeReadHandle, HANDLE& pipeWriteHandle);
@@ -56,8 +56,8 @@ private:
 
 #else // Linux
 
-    // buffer - output for child process' stdout and stderr, if NULL, th
-    bool runCommand(const std::string& command, const std::string& args, unsigned long& processResult, char* buffer = NULL, const int bufferSize = 0);
+    // buffer - output for child process' stdout and stderr, if NULL, the result is sent to stdout
+    bool runCommand(std::string command, const std::string& args, unsigned long& processResult, char* buffer = NULL, const int bufferSize = 0);
 
     bool createDirectory(const std::string& dirName);
 

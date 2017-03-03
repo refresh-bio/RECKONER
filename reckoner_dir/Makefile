@@ -6,10 +6,7 @@ LIBS = libs/libz.a
 SRCS=$(wildcard *.cpp)
 OBJS=$(SRCS:.cpp=.o)
 
-all: reckoner kmc_api
-
-kmc_api:
-	cd $(KMC_DIR_IN) && $(MAKE) kmc_api
+all: reckoner
 
 reckoner: $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) $(KMC_DIR_IN)/kmc_api/*.o $(LIBS) -o $@

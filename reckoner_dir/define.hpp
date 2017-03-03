@@ -4,14 +4,12 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * 0.2.1
+ * Version: 1.0
  * 
  */
 
 #ifndef _DEFINE_H
 #define _DEFINE_H
-
-
 
 // C++ libraries
 #include <string>
@@ -27,7 +25,6 @@
 #include <limits>
 #include <iomanip>
 #include <iterator>
-#include <ctime>
 #include <cctype>
 
 
@@ -37,38 +34,23 @@
 
 
 // definitions
-#define VERSION                    "0.2.1"
-#define NUM_LINE_FASTQ             4
-#define FASTQ_CHECK                1
-#define NUM_LINE_FASTA             2
-#define FASTA_CHECK                1
-#define READ_LENGTH_CHECK          2
-#define BITS_PER_CHAR              8
-#define BITS_PER_U_SHORT           16
-#define BITS_PER_NT                4
-#define BIT_VECTOR_MAX_COUNT       255
+#define VERSION                    "1.0"
 #define NUM_NEOCLEOTIDE            4
 #define A                          0
 #define C                          1
 #define G                          2
 #define T                          3
-#define N                          100
-#define W                          200
-#define S                          300
-#define L                          4
 #define MIN_KMER_LENGTH            3
-#define ZERO                       0
-#define BIT1                       1
-#define BIT8                       128
-#define BPS_PER_BYTE               4
-#define MAX_NUM_UNSIGNED_CHAR      255
 #define PHRED33                    33
 #define PHRED64                    64
-#define MIN_64_SCORE               59
+#define MIN_33_SCORE               33
+#define MAX_33_SCORE               74
+#define MIN_64_SCORE               59 // for qualities <-5, 40>
+#define MAX_64_SCORE               104
+#define MAX_DETECT_SCORE_DIFF      5
 #define MIN_SCORE                  33
 #define MIN_NON_SOLID_LENGTH       2
 #define MIN_SOLID_LENGTH           2
-#define INIT_MIN_QS                1000000
 #define MIN_QS_DIFF                10
 #define MAX_EXTENSION              5
 #define QS_CUTOFF                  10
@@ -91,28 +73,25 @@
 #define CHECK_MAX_CHANGES          10000
 #define MAX_CHECK_FIRST_KMER_NESTING (MAX_LOW_QS_BASES > MAX_LOW_QS_INDEXES_COMB ? MAX_LOW_QS_BASES : MAX_LOW_QS_INDEXES_COMB)
 #define LIST_FILE_EXTENSION        ".lst"
+#define TEMP_EXTENSION             ".tmp"
+#define DETERMINE_PARAMS_EXTENSION ".gen"
 #define LOG_FILE_EXTENSION         ".log"
 #define CORRECTION_FILE_EXTENSION  ".error-correction"
 #define CORRECTED_FILE_EXTENSION   ".corrected"
 #define GZ_FILE_EXTENSION          ".gz"
-#define DEFAULT_CHUNK_SIZE         100000
 #define DEFAULT_MAX_KMC_MEMORY_USAGE 4
-#define DETERMINE_READS_FOR_QUALITY 10000
+#define DETERMINE_READS_FOR_QUALITY 100000
 #define HISTOGRAM_SIZE              256
 #define MAX_CUTOFF                  5
+#define PART_SIZE                   (8 << 20)
+#define PART_BUFFERS_PER_THREAD     2
 #ifdef WIN32 // Windows
 #define KMC_EXECUTABLE_NAME "kmc.exe"
-#define CUTTER_EXECUTABLE_NAME "cutter.exe"
 #define KMC_TOOLS_EXECUTABLE_NAME "kmc_tools.exe"
-#define MAXIMUM_FINDER_EXECUTABLE_NAME "maximum_finder.exe"
 #else // Linux
-#define KMC_EXECUTABLE_NAME "./kmc"
-#define CUTTER_EXECUTABLE_NAME "./cutter"
-#define KMC_TOOLS_EXECUTABLE_NAME "./kmc_tools"
-#define MAXIMUM_FINDER_EXECUTABLE_NAME "./maximum_finder"
+#define KMC_EXECUTABLE_NAME "kmc"
+#define KMC_TOOLS_EXECUTABLE_NAME "kmc_tools"
 #endif
-
-#define USE_FILE_READER
 
 static const char NEOCLEOTIDE[NUM_NEOCLEOTIDE] = {'A', 'C', 'G', 'T'};
 

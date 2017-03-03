@@ -4,14 +4,12 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * 0.2.1
+ * Version: 1.0
  * 
  */
 
 #ifndef CORRECT_READ_HPP
 #define	CORRECT_READ_HPP
-
-
 
 #include "parse_args.hpp"
 #include <kmc_api/kmc_file.h>
@@ -22,8 +20,6 @@
 
 
 //#define USE_KMER_MEDIAN
-
-
 
 //----------------------------------------------------------------------
 // C_candidate_path
@@ -86,36 +82,29 @@ public:
     std::size_t quality_score_offset;
     std::size_t kmer_length;
     std::size_t max_extension;
-    const std::size_t max_read_length;
 
     // constructors
 
-    C_correct_read(std::size_t _quality_score_offset, std::size_t _kmer_length, std::size_t _max_extension, const std::size_t _max_read_length,
-            const std::string& _read_file_name,
-            std::size_t& _num_corrected_errors_step1_1, std::size_t& _num_corrected_errors_step1_2,
-            std::size_t& _num_corrected_errors_step1_3, std::size_t& _num_corrected_errors_step2_1,
-            std::size_t& _num_corrected_errors_step2_2, CKMCFile& _kmc_file) :
+    C_correct_read(std::size_t _quality_score_offset, std::size_t _kmer_length, std::size_t _max_extension,
+            const std::string& _read_file_name, CKMCFile& _kmc_file) :
             read_length(0),
             quality_score_offset(_quality_score_offset),
             kmer_length(_kmer_length),
             max_extension(_max_extension),
-            max_read_length(_max_read_length),
-            sequence_modification(_max_read_length, '0'),
+            num_corrected_reads(0),
+            num_corrected_errors_step1_1(0),
+            num_corrected_errors_step1_2(0),
+            num_corrected_errors_step1_3(0),
+            num_corrected_errors_step2_1(0),
+            num_corrected_errors_step2_2(0),
             kmc_file(_kmc_file),
-            kmer_api(_kmer_length),
-            modifications_sequence(new C_modification_with_quality[_max_read_length]),
-            num_corrected_errors_step1_1(_num_corrected_errors_step1_1),
-            num_corrected_errors_step1_2(_num_corrected_errors_step1_2),
-            num_corrected_errors_step1_3(_num_corrected_errors_step1_3),
-            num_corrected_errors_step2_1(_num_corrected_errors_step2_1),
-            num_corrected_errors_step2_2(_num_corrected_errors_step2_2) {
-    }
-
-    ~C_correct_read() {
-        delete[] modifications_sequence;
+            kmer_api(_kmer_length) {
     }
 
     void correct_errors_in_a_read_fastq();
+    void prepare_corrector();
+
+    void set_read_length(std::size_t _read_length);
 
     std::string header;
     std::string sequence;
@@ -124,6 +113,14 @@ public:
 
     std::string sequence_modification;
 
+    std::size_t num_corrected_reads;
+
+    std::size_t num_corrected_errors_step1_1;
+    std::size_t num_corrected_errors_step1_2;
+    std::size_t num_corrected_errors_step1_3;
+    std::size_t num_corrected_errors_step2_1;
+    std::size_t num_corrected_errors_step2_2;
+
 private:
     typedef C_candidate_path::Single_mod Single_mod;
 
@@ -131,13 +128,7 @@ private:
     CKmerAPI kmer_api;
 
     // sequence of changes in read introduced by recursive functions
-    C_modification_with_quality* modifications_sequence;
-
-    std::size_t& num_corrected_errors_step1_1;
-    std::size_t& num_corrected_errors_step1_2;
-    std::size_t& num_corrected_errors_step1_3;
-    std::size_t& num_corrected_errors_step2_1;
-    std::size_t& num_corrected_errors_step2_2;
+    std::vector<C_modification_with_quality> modifications_sequence;
 
     std::string sequence_modified;
 

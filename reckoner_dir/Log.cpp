@@ -4,13 +4,15 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * 0.2.1
+ * Version: 1.0
  * 
  */
 
 #include "Log.h"
 #include <iostream>
 #include <cstdlib>
+
+
 
 //----------------------------------------------------------------------
 // Opens file to save correction logs.

@@ -59,7 +59,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <OpenMPSupport>true</OpenMPSupport>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MultiProcessorCompilation>false</MultiProcessorCompilation>
       <AdditionalIncludeDirectories>.\libs;..\kmc_dir</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -67,7 +67,8 @@
       <SubSystem>Console</SubSystem>
       <IgnoreSpecificDefaultLibraries>libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <AdditionalLibraryDirectories>libs</AdditionalLibraryDirectories>
-      <AdditionalDependencies>zlibstat.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>zlibstat.lib;Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(SolutionDir)bin\Debug\$(TargetName)$(TargetExt)</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -77,7 +78,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <OpenMPSupport>true</OpenMPSupport>
-      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <MultiProcessorCompilation>false</MultiProcessorCompilation>
       <AdditionalIncludeDirectories>.\libs;..\kmc_dir</AdditionalIncludeDirectories>
       <Optimization>MaxSpeed</Optimization>
     </ClCompile>
@@ -88,7 +89,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <IgnoreSpecificDefaultLibraries>libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <AdditionalLibraryDirectories>libs</AdditionalLibraryDirectories>
-      <AdditionalDependencies>zlibstat.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>zlibstat.lib;Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(SolutionDir)bin\$(TargetName)$(TargetExt)</OutputFile>
     </Link>
   </ItemDefinitionGroup>
@@ -98,11 +99,12 @@
     <ClInclude Include="correct_read.hpp" />
     <ClInclude Include="define.hpp" />
     <ClInclude Include="DetermineParameters.hpp" />
+    <ClInclude Include="FastqReader.h" />
     <ClInclude Include="FileReader.h" />
     <ClInclude Include="HistogramAnalyzer.h" />
     <ClInclude Include="Log.h" />
     <ClInclude Include="parse_args.hpp" />
-    <ClInclude Include="PerformTesting.h" />
+    <ClInclude Include="PerformTasks.h" />
     <ClInclude Include="PrepareKMCDb.h" />
     <ClInclude Include="RunExternal.h" />
     <ClInclude Include="time.hpp" />
@@ -115,12 +117,13 @@
     <ClCompile Include="correct_errors.cpp" />
     <ClCompile Include="correct_read.cpp" />
     <ClCompile Include="DetermineParameters.cpp" />
+    <ClCompile Include="FastqReader.cpp" />
     <ClCompile Include="FileReader.cpp" />
     <ClCompile Include="HistogramAnalyzer.cpp" />
     <ClCompile Include="Log.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="parse_args.cpp" />
-    <ClCompile Include="PerformTesting.cpp" />
+    <ClCompile Include="PerformTasks.cpp" />
     <ClCompile Include="PrepareKMCDb.cpp" />
     <ClCompile Include="RunExternal.cpp" />
   </ItemGroup>

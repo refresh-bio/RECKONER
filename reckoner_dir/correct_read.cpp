@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * 0.2.1
+ * Version: 1.0
  * 
  */
 
@@ -95,7 +95,7 @@ void C_correct_read::correct_errors_in_a_read_fastq() {
                         std::size_t num_low_quality_base(0);
                         // set an initial value to avoid a compilation warning
                         std::size_t index_prev_low_quality_base(0);
-                        for (unsigned int it_base = solid_regions[it_sr].first; it_base < solid_regions[it_sr].second + kmer_length; it_base++) {
+                        for (size_t it_base = solid_regions[it_sr].first; it_base < solid_regions[it_sr].second + kmer_length; it_base++) {
                             // a current base has a low quality score
                             if (((unsigned short int)quality_score[it_base] - quality_score_offset) < QS_CUTOFF) {
                                 num_low_quality_base++;
@@ -155,7 +155,7 @@ void C_correct_read::correct_errors_in_a_read_fastq() {
                 std::size_t prev_low_quality_index(0);
 
                 // each base in the solid island (0-base)
-                for (unsigned int it_base = solid_regions[0].first; it_base < solid_regions[0].second + kmer_length; it_base++) {
+                for (size_t it_base = solid_regions[0].first; it_base < solid_regions[0].second + kmer_length; it_base++) {
                     // a current base has a low quality score
                     if (((unsigned short int)quality_score[it_base] - quality_score_offset) < QS_CUTOFF) {
                         num_low_quality_base++;
@@ -489,6 +489,40 @@ void C_correct_read::correct_errors_in_a_read_fastq() {
         modify_errors_first_kmer(candidate_path_vector_tmp_tmp, num_corrected_errors_step2_1, num_corrected_errors_step2_2);
     }
 }
+
+
+
+//----------------------------------------------------------------------
+// Initial set of variables values for single read correction
+//----------------------------------------------------------------------
+
+void C_correct_read::prepare_corrector() {
+    read_length = sequence.length();
+
+    sequence_modification.resize(read_length);
+    std::fill(sequence_modification.begin(), sequence_modification.begin() + read_length, '0');
+
+    num_corrected_errors_step1_1 = 0;
+    num_corrected_errors_step1_2 = 0;
+    num_corrected_errors_step1_3 = 0;
+    num_corrected_errors_step2_1 = 0;
+    num_corrected_errors_step2_2 = 0;
+}
+
+
+
+//----------------------------------------------------------------------
+// Allocates memory for the current modification path.
+//----------------------------------------------------------------------
+
+void C_correct_read::set_read_length(std::size_t _read_length) {
+    read_length = _read_length;
+    if (read_length > modifications_sequence.size()) {
+        modifications_sequence.resize(read_length);
+        sequence_modification.reserve(read_length);
+    }
+}
+
 
 
 
@@ -1781,7 +1815,7 @@ inline void C_correct_read::extend_out_right(const std::string& kmer, const std:
 //----------------------------------------------------------------------
 
 double C_correct_read::convert_quality_to_probability(char c) {
-    c -= quality_score_offset;
+    c -= static_cast<char>(quality_score_offset);
     return std::pow(10.0, -c / 10.0);
 }
 

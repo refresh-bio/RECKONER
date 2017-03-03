@@ -4,7 +4,7 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* 0.2.1
+* Version: 1.0
 *
 */
 
@@ -14,51 +14,41 @@
 #include "HistogramAnalyzer.h"
 #include <iostream>
 
-void PrepareKMCDb::run(const C_arg& c_inst_args) {
+
+
+void PrepareKMCDb::countKmers() {
     RunExternal runExternal(c_inst_args.n_threads, c_inst_args.kmc_memory);
 
-    std::cout << std::endl;
-    std::cout << "##################################################" << std::endl;
-    std::cout << "K - MER COUNTING" << std::endl;
-    std::cout << "##################################################" << std::endl;
-    Log::get_stream() << std::endl;
-    Log::get_stream() << "##################################################" << std::endl;
-    Log::get_stream() << "K - MER COUNTING" << std::endl;
-    Log::get_stream() << "##################################################" << std::endl;
-    if (!runExternal.runKMC(c_inst_args.kmer_length, c_inst_args.read_files_names, c_inst_args.read_files_names.front() + ".lst.tmp", c_inst_args.prefix)) {
+    if (!runExternal.runKMC(static_cast<int>(c_inst_args.kmer_length), c_inst_args.read_files_names, c_inst_args.kmc_database_name, c_inst_args.prefix)) {
         std::cerr << "ERROR: failed to count k-mers." << std::endl;
         Log::get_stream() << "ERROR: failed to count k-mers." << std::endl;
         exit(EXIT_FAILURE);
     }
+}
 
-    std::cout << std::endl;
-    std::cout << "##################################################" << std::endl;
-    std::cout << "DETERMINING CUTOFF THRESHOLD" << std::endl;
-    std::cout << "##################################################" << std::endl;
-    Log::get_stream() << std::endl;
-    Log::get_stream() << "##################################################" << std::endl;
-    Log::get_stream() << "DETERMINING CUTOFF THRESHOLD" << std::endl;
-    Log::get_stream() << "##################################################" << std::endl;
-
+unsigned PrepareKMCDb::determineCutoff() {
     unsigned cutoff;
+
     HistogramAnalyzer histogramAnalyzer;
-    cutoff = histogramAnalyzer.getCutoffThreshold(c_inst_args.read_files_names.front() + ".lst.tmp");
+    cutoff = histogramAnalyzer.getCutoffThreshold(c_inst_args.kmc_database_name);
 
-    std::cout << "Cutoff: " << cutoff << std::endl;
+    return cutoff;
+}
 
-    std::cout << std::endl;
-    std::cout << "##################################################" << std::endl;
-    std::cout << "REMOVING UNTRUSTED K - MERS" << std::endl;
-    std::cout << "##################################################" << std::endl;
-    Log::get_stream() << std::endl;
-    Log::get_stream() << "##################################################" << std::endl;
-    Log::get_stream() << "REMOVING UNTRUSTED K - MERS" << std::endl;
-    Log::get_stream() << "##################################################" << std::endl;
-    if (!runExternal.runKMCTools(cutoff, c_inst_args.read_files_names.front() + ".lst.tmp", c_inst_args.read_files_names.front() + ".lst")) {
+void PrepareKMCDb::filterKmers(unsigned cutoff) {
+    RunExternal runExternal(c_inst_args.n_threads, c_inst_args.kmc_memory);
+
+    if (!runExternal.runKMCTools(cutoff, c_inst_args.kmc_database_name, c_inst_args.kmc_filtered_database_name)) {
         std::cerr << "ERROR: failed to remove untrusted k-mers." << std::endl;
         Log::get_stream() << "ERROR: failed to remove untrusted k-mers." << std::endl;
         exit(EXIT_FAILURE);
     }
+}
 
-    std::cout << std::endl;
+void PrepareKMCDb::removeKMCDatabase() {
+    RunExternal::removeKMCFiles(c_inst_args.kmc_database_name);
+}
+
+void PrepareKMCDb::removeFilteredKMCDatabase() {
+    RunExternal::removeKMCFiles(c_inst_args.kmc_filtered_database_name);
 }

@@ -39,9 +39,6 @@
     <ClInclude Include="parse_args.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="PerformTesting.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="RunExternal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -52,6 +49,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="HistogramAnalyzer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PerformTasks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FastqReader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -69,9 +72,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="parse_args.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="PerformTesting.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="check_inputs.cpp">
@@ -99,6 +99,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="HistogramAnalyzer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PerformTasks.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FastqReader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

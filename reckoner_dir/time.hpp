@@ -4,17 +4,49 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * 0.2.1
+ * Version: 1.0
  * 
  */
 
 #ifndef _TIME_LOCAL_H
 #define _TIME_LOCAL_H
 
-
+#define _CRT_SECURE_NO_WARNINGS
 
 #include "define.hpp"
+#include <ctime>
 #include <vector>
+#include <string>
+
+
+
+class Timer {
+private:
+    std::time_t startTime;
+    std::time_t stopTime;
+
+public:
+    Timer() : startTime(0), stopTime(0) {}
+
+    void startTimer() {
+        time(&startTime);
+    }
+    void stopTimer() {
+        time(&stopTime);
+    }
+
+    std::string getStartTime() {
+        std::string result = ctime(&startTime);
+        result.pop_back();
+        return result;
+    }
+    std::string getStopTime() {
+        std::string result = ctime(&stopTime);
+        result.pop_back();
+        return result;
+    }
+};
+
 
 
 
@@ -25,26 +57,24 @@
 class C_time {
 public:
     // variables
-    // parse arguments
-    std::string start_parse_args;
-    std::string end_parse_args;
 
     // check read files
-    std::vector<std::string> vector_start_check_read_file;
-    std::vector<std::string> vector_end_check_read_file;
+    std::vector<Timer> vector_check_read_file;
+
+    // determine genome size and k-mer length
+    Timer determine_parameters;
+
+    // count k-mers
+    Timer kmer_count;
+
+    // determine cutoff threshold
+    Timer determine_cutoff_threshold;
+
+    // remove untrusted k-mers
+    Timer remove_untrusted_kmers;
 
     // correct errors in reads
-    std::vector<std::string> vector_start_correct_errors_in_reads;
-    std::vector<std::string> vector_end_correct_errors_in_reads;
-
-    // write corrected reads
-    std::vector<std::string> vector_start_write_corrected_reads;
-    std::vector<std::string> vector_end_write_corrected_reads;
-
-    // constructors
-
-    C_time() {
-    };
+    std::vector<Timer> vector_correct_errors_in_reads;
 };
 
 

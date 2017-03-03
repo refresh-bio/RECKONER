@@ -3,7 +3,7 @@
 RECKONER is a tool for correction of Illumina reads. It is based
 on the error correction algorithm BLESS and utilizes the following tools:
 + KMC2 for k-mer counting,
-+ kmc_tools for trimming a k-mer database.
++ KMC tools for trimming a k-mer database.
 
 RECKONER is available for Linux and Windows.
 
@@ -25,14 +25,13 @@ To run RECKONER in Windows execute file "reckoner.exe" from the "bin" directory
 
 As ARGUMENTS type the following:
 + -help - prints short help,
-+ -read FASTQ_FILE - FASTQ read file name (possibly gzipped), can be passed many times,
-+ -prefix DIRECTORY - output directory, default current directory (.),
++ -read FASTQ_FILE - input FASTQ read file name (possibly gzipped), can be passed many times,
++ -prefix DIRECTORY - directory for temporary and output files, (optional, default current directory (.)),
 + -kmerlength K - length of k-mers (optional),
 + -genome G - approximate genome size (optional),
-+ -memory N - max k-mer counting memory consumption in GB, default 4,
-+ -extend N - max extend length, default 2,
-+ -threads N - number of correcting threads, default number of available virtual cores,
-+ -nowrite - no output read.
++ -memory N - max k-mer counting memory consumption in GB (optional, default 4),
++ -extend N - max extend length, (optional, default 2),
++ -threads N - number of correcting threads, (optional, default number of available virtual cores).
 
 If k-mer length is not given it is determined automatically.
 Passing the approximate genome size may slightly improve

@@ -4,10 +4,11 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * 0.2.1
+ * Version: 1.0
  * 
  */
 
+#include <thread>
 #include "parse_args.hpp"
 #include "Log.h"
 #include <string.h>
@@ -20,7 +21,7 @@
 
 void C_arg::read_args() {
     std::cout << "RECKONER ver. " << VERSION << std::endl;
-    if (num_args == 1 || num_args == 2 && (strcmp(args[1], "-help") == 0)) {
+    if (num_args == 1 || (num_args == 2 && (strcmp(args[1], "-help") == 0))) {
         print_usage();
         exit(EXIT_SUCCESS);
     }
@@ -124,12 +125,6 @@ void C_arg::read_args() {
                 exit(EXIT_FAILURE);
             }
         }
-        else if (strcmp(args[it_arg], "-nowrite") == 0) {
-            if (lastArgumentsGiven) {
-                params_at_the_beginning();
-            }
-            nowrite = true;
-        }
         else if (args[it_arg][0] == '-') {
             std::cerr << std::endl << "ERROR: Illegal option " << args[it_arg] << std::endl << std::endl;
             exit(EXIT_FAILURE);
@@ -148,7 +143,9 @@ void C_arg::read_args() {
         std::cerr << std::endl << "ERROR: No read file name is specified." << std::endl << std::endl;
         exit(EXIT_FAILURE);
     }
-    kmc_database_name = read_files_names.front() + LIST_FILE_EXTENSION;
+    kmc_determine_params_database_name = read_files_names.front() + DETERMINE_PARAMS_EXTENSION;
+    kmc_database_name = read_files_names.front() + TEMP_EXTENSION;
+    kmc_filtered_database_name = read_files_names.front();
 
     if (prefix.empty()) {
         prefix = ".";
@@ -283,18 +280,17 @@ void C_arg::print_usage() {
     std::cout << "-help                   - print this text" << std::endl;
     std::cout << "-read FASTQ_FILE        - FASTQ read file name, can be passed many times" << std::endl;
     std::cout << "-prefix DIRECTORY       - output directory, default current directory (.)" << std::endl;
-    std::cout << "-kmerlength K           - length of k-mers" << std::endl;
+    std::cout << "-kmerlength K           - k-mers length" << std::endl;
     std::cout << "-genome G               - approximate genome size" << std::endl;
     std::cout << "-memory N               - max k-mer counting memory consumption" << std::endl;
     std::cout << "-extend N               - max extend length, default 2" << std::endl;
     std::cout << "-threads N              - number of correcting threads, default number of available virtual cores" << std::endl;
-    std::cout << "-nowrite                - no output read" << std::endl;
 
-    std::cout << std::endl << "Instead of using -read option one can specify the input FASTQ files" << std::endl;
+    std::cout << std::endl << "Instead of using -read option the input FASTQ files can be specified" << std::endl;
     std::cout << "at the end of the command line." << std::endl;
 
-    std::cout << std::endl << "K-mer length, if not given, is determined automatically. By delivering genome size" << std::endl;
-    std::cout << "one can facilitate and accelerate this determination." << std::endl;
+    std::cout << std::endl << "K-mer length, if not given, will be determined automatically. Delivering genome size" << std::endl;
+    std::cout << "can facilitate and accelerate this determination." << std::endl;
 
     std::cout << std::endl;
 }
@@ -303,4 +299,20 @@ void C_arg::params_at_the_beginning() {
     std::cerr << "ERROR: Input files list should be specified at the end of the command line." << std::endl;
     std::cerr << "       Alternatively use -read option." << std::endl;
     exit(EXIT_FAILURE);
+}
+
+C_arg::C_arg(int argc, char** argv) :
+is_kmer_length_user_defined(false),
+kmer_length(0),
+is_genome_size_user_defined(false),
+genome_size(0),
+extend(MAX_EXTENSION),
+n_threads(std::thread::hardware_concurrency()),
+kmc_memory(DEFAULT_MAX_KMC_MEMORY_USAGE),
+num_args(argc),
+args(argv) {
+    if (n_threads == 0) {
+        n_threads = 1;
+    }
+    read_args();
 }
