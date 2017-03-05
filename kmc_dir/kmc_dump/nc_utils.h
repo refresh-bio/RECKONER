@@ -121,7 +121,7 @@ public:
 		double corrector = .5 / powOf10[prec];
 		val += corrector;
 		double ipart;
-		double fractPart = std::modf(val, &ipart);
+		double fractPart = modf(val, &ipart);
 		uint32 intPart = (uint32)ipart;
 		uint32 len = Int2PChar(intPart, str);
 		uint32 pos = len;
