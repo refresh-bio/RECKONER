@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.0
+ * Version: 1.1
  * 
  */
 
@@ -525,7 +525,6 @@ void C_correct_read::set_read_length(std::size_t _read_length) {
 
 
 
-
 //----------------------------------------------------------------------
 // Corrects errors in a region situated between correct regions.
 //----------------------------------------------------------------------
@@ -568,11 +567,7 @@ inline void C_correct_read::correct_errors_between_solid_regions(const std::size
                 candidate_path.modified_bases.push_back(pair_tmp);
             }
             candidate_path.kmers_quality += kmer_quality;
-#ifdef USE_KMER_MEDIAN
-            candidate_path.covering_kmers_weight_vector.push_back(kmer_quality);
-#else
             candidate_path.covering_kmers_weight += COVERING_KMERS_WEIGHT;
-#endif
 
             // if this k-mer is the last k-mer that can be modified
             // running extend_a_kmer_right is not needed any more
@@ -686,11 +681,8 @@ inline void C_correct_read::correct_errors_5_prime_end(const std::size_t index_s
                 candidate_path.modified_bases.push_back(pair_tmp);
 
                 candidate_path.kmers_quality += kmer_quality;
-#ifdef USE_KMER_MEDIAN
-                candidate_path.covering_kmers_weight_vector.push_back(kmer_quality);
-#else
                 candidate_path.covering_kmers_weight += COVERING_KMERS_WEIGHT;
-#endif
+
                 candidate_path_vector_tmp.push_back(candidate_path);
             }
             else if (index_start > 0) {
@@ -762,11 +754,8 @@ inline void C_correct_read::correct_errors_3_prime_end(const std::size_t index_s
                 candidate_path.modified_bases.push_back(pair_tmp);
 
                 candidate_path.kmers_quality += kmer_quality;
-#ifdef USE_KMER_MEDIAN
-                candidate_path.covering_kmers_weight_vector.push_back(kmer_quality);
-#else
                 candidate_path.covering_kmers_weight += COVERING_KMERS_WEIGHT;
-#endif
+
                 candidate_path_vector_tmp.push_back(candidate_path);
             }
             else if (index_start < (read_length - kmer_length)) {
@@ -854,11 +843,7 @@ inline void C_correct_read::correct_errors_first_kmer(std::vector<C_candidate_pa
                             candidate_path.modified_bases.push_back(pair_tmp);
 
                             candidate_path.kmers_quality += kmer_quality;
-#ifdef USE_KMER_MEDIAN
-                            candidate_path.covering_kmers_weight_vector.push_back(kmer_quality);
-#else
                             candidate_path.covering_kmers_weight += COVERING_KMERS_WEIGHT;
-#endif
 
                             candidate_path_vector.push_back(candidate_path);
                         }
@@ -873,11 +858,7 @@ inline void C_correct_read::correct_errors_first_kmer(std::vector<C_candidate_pa
         if (query_text(first_kmer, kmer_quality) == true) {
             C_candidate_path candidate_path;
             candidate_path.kmers_quality += kmer_quality;
-#ifdef USE_KMER_MEDIAN
-            candidate_path.covering_kmers_weight_vector.push_back(kmer_quality);
-#else
             candidate_path.covering_kmers_weight += COVERING_KMERS_WEIGHT;
-#endif
 
             candidate_path_vector.push_back(candidate_path);
         }
@@ -914,11 +895,7 @@ inline void C_correct_read::correct_errors_first_kmer(std::vector<C_candidate_pa
                                 candidate_path.modified_bases.push_back(pair_tmp);
 
                                 candidate_path.kmers_quality += kmer_quality;
-#ifdef USE_KMER_MEDIAN
-                                candidate_path.covering_kmers_weight_vector.push_back(kmer_quality);
-#else
                                 candidate_path.covering_kmers_weight += COVERING_KMERS_WEIGHT;
-#endif
 
                                 candidate_path_vector.push_back(candidate_path);
                             }
@@ -959,11 +936,7 @@ inline void C_correct_read::correct_errors_first_kmer(std::vector<C_candidate_pa
 
         for(std::vector<C_candidate_path>::iterator it_path = candidate_path_vector_tmp_tmp.begin(); it_path != candidate_path_vector_tmp_tmp.end(); ++it_path) {
             // each modification
-#ifdef USE_KMER_MEDIAN
-            double rate = it_path->covering_kmers_weight_vector[0];
-#else
             double rate = it_path->covering_kmers_weight;
-#endif
 
             for (std::size_t it_mod = 0; it_mod < (*it_path).modified_bases.size(); it_mod++) {
                 // multiply bases' error probabilities
@@ -1118,11 +1091,7 @@ inline void C_correct_read::extend_first_kmer_to_right(C_candidate_path& candida
             // running extend_a_kmer_3_prime_end is not needed any more
 
             candidate_path_in.kmers_quality += kmer_quality;
-#ifdef USE_KMER_MEDIAN
-            candidate_path_in.covering_kmers_weight_vector.push_back(kmer_quality);
-#else
             candidate_path_in.covering_kmers_weight += COVERING_KMERS_WEIGHT;
-#endif
 
             candidate_path_vector_tmp.push_back(candidate_path_in);
         }
@@ -1164,11 +1133,7 @@ inline void C_correct_read::extend_first_kmer_to_right(C_candidate_path& candida
                         Single_mod pair_tmp(kmer_length, NEOCLEOTIDE[it_alter]);
 
                         new_candidate_path.kmers_quality += kmer_quality;
-#ifdef USE_KMER_MEDIAN
-                        new_candidate_path.covering_kmers_weight_vector.push_back(kmer_quality);
-#else
                         new_candidate_path.covering_kmers_weight += COVERING_KMERS_WEIGHT;
-#endif
 
                         new_candidate_path.modified_bases.push_back(pair_tmp);
                         candidate_path_vector_tmp.push_back(new_candidate_path);
@@ -1228,11 +1193,7 @@ inline void C_correct_read::extend_a_kmer(const std::string& kmer, const std::si
         // if this k-mer is the last k-mer that can be modified
         // running extend_a_kmer_right is not needed any more
         current_path.kmers_quality += kmer_quality;
-#ifdef USE_KMER_MEDIAN
-        current_path.covering_kmers_weight_vector.push_back(kmer_quality);
-#else
         current_path.covering_kmers_weight += COVERING_KMERS_WEIGHT;
-#endif
 
         if ((index_kmer + 1) == index_last_mod) {
             candidate_path_vector.push_back(current_path);
@@ -1261,11 +1222,7 @@ inline void C_correct_read::extend_a_kmer(const std::string& kmer, const std::si
                     // generate a new path
                     C_candidate_path temporary_path(current_path);
                     temporary_path.kmers_quality += kmer_quality;
-#ifdef USE_KMER_MEDIAN
-                    temporary_path.covering_kmers_weight_vector.push_back(kmer_quality);
-#else
                     temporary_path.covering_kmers_weight += COVERING_KMERS_WEIGHT;
-#endif
 
                     Single_mod pair_tmp(index_kmer + kmer_length, NEOCLEOTIDE[it_alter]);
 
@@ -1385,11 +1342,8 @@ void C_correct_read::perform_extend_out_left(std::string& sequence_tmp, C_candid
 
         if (extension_success == true) {
             candidate_path.kmers_quality += max_extended_kmer_quality * EXTENSION_KMERS_WEIGHT;
-#ifdef USE_KMER_MEDIAN
-            it_path->covering_kmers_weight_vector.push_back(max_extended_kmer_quality * EXTENSION_KMERS_WEIGHT);
-#else
             candidate_path.covering_kmers_weight += EXTENSION_KMERS_WEIGHT;
-#endif
+
             candidate_path_vector_tmp_tmp.push_back(candidate_path);
         }
     }
@@ -1493,11 +1447,8 @@ void C_correct_read::perform_extend_out_right(std::string& sequence_tmp, C_candi
 
         if (extension_success == true) {
             candidate_path.kmers_quality += max_extended_kmer_quality * EXTENSION_KMERS_WEIGHT;
-#ifdef USE_KMER_MEDIAN
-            candidate_path.covering_kmers_weight_vector.push_back(max_extended_kmer_quality * EXTENSION_KMERS_WEIGHT);
-#else
             candidate_path.covering_kmers_weight += EXTENSION_KMERS_WEIGHT;
-#endif
+
             candidate_path_vector_tmp_tmp.push_back(candidate_path);
         }
     }
@@ -1535,11 +1486,8 @@ inline void C_correct_read::extend_a_kmer_5_prime_end(const std::string& kmer, c
                     candidate_path.modified_bases.push_back(single_modification);
                 }
                 candidate_path.kmers_quality += modifications_sequence[it].quality;
-#ifdef USE_KMER_MEDIAN
-                candidate_path.covering_kmers_weight_vector.push_back(modifications[it].quality);
-#else
                 candidate_path.covering_kmers_weight += COVERING_KMERS_WEIGHT;
-#endif
+
             }
             candidate_path_vector.push_back(candidate_path);
         }
@@ -1575,14 +1523,12 @@ inline void C_correct_read::extend_a_kmer_5_prime_end(const std::string& kmer, c
                         for (std::size_t it = 0; it <= nesting; ++it) {
                             if (modifications_sequence[it].modification != sequence_modified[nesting - it]) {
                                 Single_mod single_modification(nesting - it, modifications_sequence[it].modification);
+
                                 candidate_path.modified_bases.push_back(single_modification);
                             }
                             candidate_path.kmers_quality += modifications_sequence[it].quality;
-#ifdef USE_KMER_MEDIAN
-                            candidate_path.covering_kmers_weight_vector.push_back(modifications[it].quality);
-#else
                             candidate_path.covering_kmers_weight += COVERING_KMERS_WEIGHT;
-#endif
+
                         }
                         candidate_path_vector.push_back(candidate_path);
                     }
@@ -1646,11 +1592,7 @@ inline void C_correct_read::extend_a_kmer_3_prime_end(const std::string& kmer, c
                     candidate_path_new.modified_bases.push_back(single_modification);
                 }
                 candidate_path_new.kmers_quality += modifications_sequence[it].quality;
-#ifdef USE_KMER_MEDIAN
-                candidate_path_new.covering_kmers_weight_vector.push_back(modifications[it].quality);
-#else
                 candidate_path_new.covering_kmers_weight += COVERING_KMERS_WEIGHT;
-#endif
             }
             candidate_path_vector.push_back(candidate_path_new);
         }
@@ -1690,11 +1632,7 @@ inline void C_correct_read::extend_a_kmer_3_prime_end(const std::string& kmer, c
                                 candidate_path_new.modified_bases.push_back(single_modification);
                             }
                             candidate_path_new.kmers_quality += modifications_sequence[it].quality;
-#ifdef USE_KMER_MEDIAN
-                            candidate_path_new.covering_kmers_weight_vector.push_back(modifications[it].quality);
-#else
                             candidate_path_new.covering_kmers_weight += COVERING_KMERS_WEIGHT;
-#endif
                         }
                         candidate_path_vector.push_back(candidate_path_new);
                     }
@@ -1870,11 +1808,7 @@ std::vector<C_candidate_path>::iterator C_correct_read::choose_best_correction(s
                 }
             }
 
-#ifdef USE_KMER_MEDIAN
-            it_path->kmers_quality = median(it_path->covering_kmers_weight_vector);
-#else
             it_path->kmers_quality /= it_path->covering_kmers_weight;
-#endif
             it_path->kmers_quality *= nucleotides_probability;
 
             if (it_path->kmers_quality > best_kmer_quality) {
@@ -1949,28 +1883,11 @@ void C_correct_read::modify_errors_first_kmer(std::vector<C_candidate_path>& can
 
 
 //----------------------------------------------------------------------
-// Finds median from k-mers qualities.
-//----------------------------------------------------------------------
-#ifdef USE_KMER_MEDIAN
-
-float C_correct_read::median(std::vector<float>& kmer_qualities) {
-    std::sort(kmer_qualities.begin(), kmer_qualities.end());
-    if (kmer_qualities.size() % 2 == 1) {
-        return kmer_qualities[kmer_qualities.size() / 2];
-    }
-    return (kmer_qualities[kmer_qualities.size() / 2] + kmer_qualities[kmer_qualities.size() / 2 - 1]) * 0.5f;
-}
-#endif
-
-
-//----------------------------------------------------------------------
 // Removes modifications from a correction path.
 //----------------------------------------------------------------------
 
 void C_candidate_path::clear_path() {
     modified_bases.clear();
     kmers_quality = 0.0;
-#ifndef USE_KMER_MEDIAN   
     covering_kmers_weight = 0.0;
-#endif
 }

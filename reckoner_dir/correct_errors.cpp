@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.0
+ * Version: 1.1
  * 
  */
 
@@ -199,8 +199,8 @@ void C_correct_errors::correct_errors_in_reads(CKMCFile& kmc_file) {
     merger_thread.join();
     reader_thread.join();
 
-    std::cout << "     Number of corrected reads     : " << global_num_corrected_reads << std::endl;
-    f_log << "     Number of corrected reads     : " << global_num_corrected_reads << std::endl;
+    std::cout << "     Number of corrected reads     : " << global_num_corrected_reads << std::endl << std::endl;
+    f_log << "     Number of corrected reads     : " << global_num_corrected_reads << std::endl << std::endl;
 }
 
 

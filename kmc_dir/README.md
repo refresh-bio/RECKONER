@@ -12,6 +12,7 @@ If your system needs other binary formats, you should put the following librarie
 * asmlib - for fast memcpy operation (http://www.agner.org/optimize/asmlib-instructions.pdf)
 * libbzip2 - for support for bzip2-compressed input FASTQ/FASTA files (http://www.bzip.org/)
 * zlib - for support for gzip-compressed input FASTQ/FASTA files (http://www.zlib.net/)
+* vcl (C++ vector class library) - for detection of processor extensions (SSE, AVX, etc.)
 
 Note: asmlib is free only for non commercial purposes. If needed, you can contact the author of asmlib or compile KMC without asmlib.
 
@@ -20,8 +21,7 @@ If needed, you can also redefine maximal length of k-mer, which is 256 in the cu
 Note: KMC is highly optimized and spends only as many bytes for k-mer (rounded up to 8) as
 necessary, so using large values of MAX_K does not affect the KMC performance for short k-mers.
 
-Some parts of KMC use C++11 features, so you need a compatible C++ compiler, e.g., gcc 4.7
-or higher.
+Some parts of KMC use C++14 features, so you need a compatible C++ compiler, e.g., gcc 4.9+ or clang 3.4+
 
 After that, you can run make to compile kmc and kmc_dump applications.
 If you want to compile kmc without asmlib run:
@@ -73,6 +73,8 @@ License
 Note: for commercial usage of asmlib follow the instructions in 'License conditions' (http://www.agner.org/optimize/asmlib-instructions.pdf) or compile KMC without asmlib.
 In case of doubt, please consult the original documentations.
 
+* vcl is under the licence GNU GPL 3 or higher 
+Node: for commercial usage of vcl follow the instructions in 'License' section (http://www.agner.org/optimize/vectorclass.pdf)
 
 Warranty
 =

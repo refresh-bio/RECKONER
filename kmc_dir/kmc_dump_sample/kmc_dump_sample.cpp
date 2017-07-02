@@ -7,8 +7,8 @@
 
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
 
-  Version: 2.3.0
-  Date   : 2015-08-21
+  Version: 3.0.0
+  Date   : 2017-01-28
 */
 
 #include "stdafx.h"
@@ -135,8 +135,8 @@ void print_info(void)
 	std::cout << "Parameters:\n";
 	std::cout << "<kmc_database> - kmer_counter's output\n";
 	std::cout << "Options:\n";
-	std::cout << "-ci<value> - print k-mers occurring less than <value> times\n";
-	std::cout << "-cx<value> - print k-mers occurring more of than <value> times\n";
+	std::cout << "-ci<value> - exclude k-mers occurring less than <value> times\n";
+	std::cout << "-cx<value> - exclude k-mers occurring more of than <value> times\n";
 };
 
 // ***** EOF

@@ -4,8 +4,8 @@ The homepage of the KMC project is http://sun.aei.polsl.pl/kmc
 
 Authors: Sebastian Deorowicz and Agnieszka Debudaj-Grabysz
 
-Version: 2.3.0
-Date   : 2015-08-21
+Version: 3.0.0
+Date   : 2017-01-28
 */
 
 #ifndef _KMER_API_H
@@ -539,32 +539,73 @@ public:
 		}
 		else
 		{
-			for (uint32 i_rows = no_of_rows - 1; i_rows > 0; --i_rows)
-			{
-				kmer_data[i_rows] >>= 64 - 8 * size_in_byte - 2 * byte_alignment;
+			uint64 to_less_sign_row = 0;
+			if (size_in_byte != 8) {
+				// move bits right
 
-				// more significant row
-				uint64 previous = kmer_data[i_rows - 1];
-				previous <<= 8 * size_in_byte + 2 * byte_alignment;
-				kmer_data[i_rows] |= previous;
-
-				byte1 = reinterpret_cast<uchar*>(kmer_data + i_rows);
-				byte2 = reinterpret_cast<uchar*>(kmer_data + i_rows) + 7;
-
-				for (int i_bytes = 0; i_bytes < 4; ++i_bytes)
+				for (uint32 i_rows = no_of_rows - 1; i_rows > 0; --i_rows)
 				{
-					unsigned char temp = rev_comp_bytes_LUT[*byte1];
-					*byte1 = rev_comp_bytes_LUT[*byte2];
-					*byte2 = temp;
+					// more significant rows
 
-					++byte1;
-					--byte2;
+					kmer_data[i_rows] >>= 64 - 8 * size_in_byte - 2 * byte_alignment;
+
+					uint64 previous = kmer_data[i_rows - 1];
+					previous <<= 8 * size_in_byte + 2 * byte_alignment;
+					kmer_data[i_rows] |= previous;
+
+					byte1 = reinterpret_cast<uchar*>(kmer_data + i_rows);
+					byte2 = reinterpret_cast<uchar*>(kmer_data + i_rows) + 7;
+
+					for (int i_bytes = 0; i_bytes < 4; ++i_bytes)
+					{
+						unsigned char temp = rev_comp_bytes_LUT[*byte1];
+						*byte1 = rev_comp_bytes_LUT[*byte2];
+						*byte2 = temp;
+
+						++byte1;
+						--byte2;
+					}
 				}
+
+				kmer_data[0] >>= 64 - 8 * size_in_byte - 2 * byte_alignment;
+				kmer_data[0] <<= 64 - 8 * size_in_byte;
+			}
+			else
+			{
+				// Move bits left
+
+				for (uint32 i_rows = no_of_rows - 1; i_rows > 0; --i_rows)
+				{
+					// more significant rows
+
+					uint64 from_less_sign_row = to_less_sign_row;
+					if (byte_alignment != 0)
+					{
+						to_less_sign_row = kmer_data[i_rows];
+						to_less_sign_row >>= 64 - 2 * byte_alignment;
+					}
+
+					kmer_data[i_rows] <<= 2 * byte_alignment;
+					kmer_data[i_rows] |= from_less_sign_row;
+
+					byte1 = reinterpret_cast<uchar*>(kmer_data + i_rows);
+					byte2 = reinterpret_cast<uchar*>(kmer_data + i_rows) + 7;
+
+					for (int i_bytes = 0; i_bytes < 4; ++i_bytes)
+					{
+						unsigned char temp = rev_comp_bytes_LUT[*byte1];
+						*byte1 = rev_comp_bytes_LUT[*byte2];
+						*byte2 = temp;
+
+						++byte1;
+						--byte2;
+					}
+				}
+
+				kmer_data[0] <<= 2 * byte_alignment;
 			}
 
-			// clear less significant bits
-			kmer_data[0] >>= 64 - 8 * size_in_byte - 2 * byte_alignment;
-			kmer_data[0] <<= 64 - 8 * size_in_byte;
+			kmer_data[0] |= to_less_sign_row;
 
 			byte1 = reinterpret_cast<uchar*>(kmer_data)+8 - size_in_byte;
 			byte2 = reinterpret_cast<uchar*>(kmer_data)+7;

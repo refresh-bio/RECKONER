@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.0
+ * Version: 1.1
  * 
  */
 
@@ -44,6 +44,10 @@ public:
         std::string result = ctime(&stopTime);
         result.pop_back();
         return result;
+    }
+
+    bool wasTimeMeasured() {
+        return startTime != 0 && stopTime != 0;
     }
 };
 

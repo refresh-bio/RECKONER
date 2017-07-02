@@ -4,14 +4,15 @@
   
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
   
-  Version: 2.3.0
-  Date   : 2015-08-21
+  Version: 3.0.0
+  Date   : 2017-01-28
 */
 
 #ifndef _BKB_SORTER_H
 #define _BKB_SORTER_H
 
 #include "radix.h"
+#include "raduls.h"
 #include "kxmer_set.h"
 #include "params.h"
 
@@ -42,13 +43,11 @@ class CBigKmerBinSorter
 	uint32 *kxmers_counters;
 	uint64 kxmers_size;
 	uint64 kxmers_pos;
-
-	int32 cutoff_min, cutoff_max;
-	int32 counter_max;
+	
 	uint32 *kxmer_counters;
 
 	int32 lut_prefix_len;
-	int n_omp_threads;
+	int n_sorting_threads;
 	int32 bin_id;
 	uint32 sub_bin_id;
 
@@ -57,12 +56,14 @@ class CBigKmerBinSorter
 	bool use_quake;
 	uint64 sum_n_rec, sum_n_plus_x_rec;
 
+	SortFunction<KMER_T> sort_func;
+
 	friend class CBigKmerBinSorter_Impl<KMER_T, SIZE>;
 
 	void Sort();	
 
 public:
-	CBigKmerBinSorter(CKMCParams& Params, CKMCQueues& Queues);
+	CBigKmerBinSorter(CKMCParams& Params, CKMCQueues& Queues, SortFunction<KMER_T> sort_func);
 	~CBigKmerBinSorter();
 	void Process();
 	
@@ -155,7 +156,9 @@ template<typename KMER_T, unsigned SIZE> void CBigKmerBinSorter<KMER_T, SIZE>::P
 
 //----------------------------------------------------------------------------------
 template<typename KMER_T, unsigned SIZE>
-CBigKmerBinSorter<KMER_T, SIZE>::CBigKmerBinSorter(CKMCParams& Params, CKMCQueues& Queues) : kxmer_set(Params.kmer_len)
+CBigKmerBinSorter<KMER_T, SIZE>::CBigKmerBinSorter(CKMCParams& Params, CKMCQueues& Queues, SortFunction<KMER_T> sort_func) : 
+	kxmer_set(Params.kmer_len), 
+	sort_func(sort_func)
 {	
 	sorted_kxmers = NULL;
 	kxmer_counters = NULL;
@@ -182,12 +185,9 @@ CBigKmerBinSorter<KMER_T, SIZE>::CBigKmerBinSorter(CKMCParams& Params, CKMCQueue
 
 	lut_prefix_len = Params.lut_prefix_len;
 
-	n_omp_threads = Params.sm_n_omp_threads;
+	n_sorting_threads = Params.sm_n_sorting_threads;
 	
-	sum_n_rec = sum_n_plus_x_rec = 0;
-	cutoff_max = (int32)Params.cutoff_max;
-	cutoff_min = Params.cutoff_min;
-	counter_max = (int32)Params.counter_max;
+	sum_n_rec = sum_n_plus_x_rec = 0;	
 }
 
 //----------------------------------------------------------------------------------
@@ -213,41 +213,17 @@ void CBigKmerBinSorter<KMER_T, SIZE>::Sort()
 	}
 	sum_n_plus_x_rec += kxmers_pos;
 
-	if (sizeof(KMER_T) == 8)
-	{
-		uint64 *_buffer_input = (uint64*)kxmers;
-		uint64 *_buffer_tmp = (uint64*)sort_tmp;
+	sort_func(kxmers, sort_tmp, sort_rec, rec_len - 1, n_sorting_threads, pmm_radix_buf);
 	
-		RadixSort_buffer(pmm_radix_buf, _buffer_input, _buffer_tmp, sort_rec, rec_len, n_omp_threads);
-
-		if (rec_len % 2)
-		{
-			kxmers_counters = (uint32*)kxmers;
-			sorted_kxmers = (KMER_T*)sort_tmp;
-		}
-		else
-		{
-			kxmers_counters = (uint32*)sort_tmp;
-			sorted_kxmers = (KMER_T*)kxmers;
-		}
+	if (rec_len % 2)
+	{
+		kxmers_counters = (uint32*)kxmers;
+		sorted_kxmers = sort_tmp;
 	}
 	else
 	{
-		uint32 *_buffer_input = (uint32*)kxmers;
-		uint32 *_buffer_tmp = (uint32*)sort_tmp;
-
-		RadixSort_uint8(_buffer_input, _buffer_tmp, sort_rec, sizeof(KMER_T), offsetof(KMER_T, data), SIZE*sizeof(typename KMER_T::data_t), rec_len, n_omp_threads);
-
-		if (rec_len % 2)
-		{
-			kxmers_counters = (uint32*)_buffer_input;
-			sorted_kxmers = (KMER_T*)_buffer_tmp;
-		}
-		else
-		{
-			kxmers_counters = (uint32*)_buffer_tmp;
-			sorted_kxmers = (KMER_T*)_buffer_input;
-		}
+		kxmers_counters = (uint32*)sort_tmp;
+		sorted_kxmers = kxmers;
 	}
 }
 
@@ -298,7 +274,7 @@ template<unsigned SIZE> void CBigKmerBinSorter_Impl<CKmer<SIZE>, SIZE>::PostProc
 	uint64 suff_buff_size = ptr.sm_mem_part_suffixes / suffix_rec_bytes * suffix_rec_bytes;
 
 	uint64 suff_buff_pos = 0;
-	uint32 n_recs = 0;
+	uint64 n_recs = 0;
 	CKmer<SIZE> *act_kmer;
 	uint32 count;
 	uint64 i;
@@ -367,7 +343,7 @@ template<unsigned SIZE> void CBigKmerBinSorter_Impl<CKmer<SIZE>, SIZE>::PreCompa
 }
 
 //----------------------------------------------------------------------------------
-//Binary search position of first occurence of symbol 'symb' in [start_pos,end_pos). Offset defines which symbol in k+x-mer is taken.
+//Binary search position of first occurrence of symbol 'symb' in [start_pos,end_pos). Offset defines which symbol in k+x-mer is taken.
 template <unsigned SIZE> uint64 CBigKmerBinSorter_Impl<CKmer<SIZE>, SIZE>::FindFirstSymbOccur(CBigKmerBinSorter<CKmer<SIZE>, SIZE> &ptr, uint64 start_pos, uint64 end_pos, uint32 offset, uchar symb)
 {
 	uint32 kxmer_offset = (ptr.kmer_len + ptr.max_x - offset) * 2;
@@ -453,7 +429,7 @@ template<unsigned SIZE> void CBigKmerBinSorter_Impl<CKmer<SIZE>, SIZE>::PostProc
 	uint64 suff_buff_size = ptr.sm_mem_part_suffixes / suffix_rec_bytes * suffix_rec_bytes;
 	
 	uint64 suff_buff_pos = 0;
-	uint32 n_recs = 0;
+	uint64 n_recs = 0;
 
 	uint64 compacted_count;
 	PreCompactKxmers(ptr, compacted_count, ptr.kxmers_counters);
@@ -544,7 +520,7 @@ class CWBigKmerBinSorter
 {
 	CBigKmerBinSorter<KMER_T, SIZE>* bkb_sorter;
 public:
-	CWBigKmerBinSorter(CKMCParams& Params, CKMCQueues& Queues);
+	CWBigKmerBinSorter(CKMCParams& Params, CKMCQueues& Queues, SortFunction<KMER_T> sort_func);
 	~CWBigKmerBinSorter();
 	void operator()();
 };
@@ -552,9 +528,9 @@ public:
 //----------------------------------------------------------------------------------
 // Constructor
 template<typename KMER_T, unsigned SIZE>
-CWBigKmerBinSorter<KMER_T, SIZE>::CWBigKmerBinSorter(CKMCParams& Params, CKMCQueues& Queues)
+CWBigKmerBinSorter<KMER_T, SIZE>::CWBigKmerBinSorter(CKMCParams& Params, CKMCQueues& Queues, SortFunction<KMER_T> sort_func)
 {
-	bkb_sorter = new CBigKmerBinSorter<KMER_T, SIZE>(Params, Queues);
+	bkb_sorter = new CBigKmerBinSorter<KMER_T, SIZE>(Params, Queues, sort_func);
 }
 
 //----------------------------------------------------------------------------------

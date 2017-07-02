@@ -4,7 +4,7 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* Version: 1.0
+* Version: 1.1
 *
 */
 
@@ -38,8 +38,8 @@ public:
     RunExternal(std::size_t _nThreads, std::size_t _maxMemory) : nThreads(_nThreads), maxMemory(_maxMemory) {}
 
     bool runKMCTools(int cutoff, const std::string& inputFileName, const std::string& outputFileName);
-    bool runKMC(int kmerLength, const std::vector<std::string>& inputFilesNames, const std::string& outputFileName, const std::string& tempName);
-    bool runKMCToBuffer(std::size_t kmerLength, const std::vector<std::string>& inputFilesNames, const std::string& outputFileName, const std::string& tempName, char* buffer, const int bufferSize);
+    bool runKMC(int kmerLength, const std::vector<std::string>& inputFilesNames, const std::string& outputFileName, const std::string& listFileName, const std::string& tempName);
+    bool runKMCToBuffer(std::size_t kmerLength, const std::vector<std::string>& inputFilesNames, const std::string& outputFileName, const std::string& listFileName, const std::string& tempName, char* buffer, const int bufferSize);
 
     static void removeKMCFiles(const std::string& fileName);
 
@@ -52,14 +52,16 @@ private:
     bool createPipe(HANDLE& pipeReadHandle, HANDLE& pipeWriteHandle);
     void destroyPipe(HANDLE& pipeReadHandle, HANDLE& pipeWriteHandle);
 
-    bool createDirectory(const std::string& dirName);
+public:
+    static bool createDirectory(const std::string& dirName);
 
 #else // Linux
 
     // buffer - output for child process' stdout and stderr, if NULL, the result is sent to stdout
     bool runCommand(std::string command, const std::string& args, unsigned long& processResult, char* buffer = NULL, const int bufferSize = 0);
 
-    bool createDirectory(const std::string& dirName);
+public:
+    static bool createDirectory(const std::string& dirName);
 
 #endif
 };

@@ -4,7 +4,7 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* Version: 1.0
+* Version: 1.1
 *
 */
 
@@ -98,7 +98,7 @@ std::size_t DetermineParameters::determineKmerLength() {
 std::size_t DetermineParameters::determineGenomeSize() {
     char* kmcBuffer = new char[KMC_STDOUT_BUFFER_SIZE];
     RunExternal runExternal(c_inst_args.n_threads, c_inst_args.kmc_memory);
-    if (!runExternal.runKMCToBuffer(PROBE_KMER_LENGTH, c_inst_args.read_files_names, c_inst_args.kmc_determine_params_database_name, c_inst_args.prefix, kmcBuffer, KMC_STDOUT_BUFFER_SIZE)) {
+    if (!runExternal.runKMCToBuffer(PROBE_KMER_LENGTH, c_inst_args.read_files_names, c_inst_args.kmc_determine_params_database_name, c_inst_args.kmc_list_file_name, c_inst_args.prefix, kmcBuffer, KMC_STDOUT_BUFFER_SIZE)) {
         std::cerr << "ERROR: failed to count k-mers." << std::endl;
         Log::get_stream() << "ERROR: failed to count k-mers." << std::endl;
         exit(EXIT_FAILURE);

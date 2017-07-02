@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.0
+ * Version: 1.1
  * 
  */
 
@@ -34,7 +34,7 @@
 
 
 // definitions
-#define VERSION                    "1.0"
+#define VERSION                    "1.1"
 #define NUM_NEOCLEOTIDE            4
 #define A                          0
 #define C                          1
@@ -85,12 +85,14 @@
 #define MAX_CUTOFF                  5
 #define PART_SIZE                   (8 << 20)
 #define PART_BUFFERS_PER_THREAD     2
-#ifdef WIN32 // Windows
+#if defined(WIN32) || defined(_WIN32) // Windows
 #define KMC_EXECUTABLE_NAME "kmc.exe"
 #define KMC_TOOLS_EXECUTABLE_NAME "kmc_tools.exe"
+#define DIRECTORY_SEPARATOR "\\"
 #else // Linux
 #define KMC_EXECUTABLE_NAME "kmc"
 #define KMC_TOOLS_EXECUTABLE_NAME "kmc_tools"
+#define DIRECTORY_SEPARATOR "/"
 #endif
 
 static const char NEOCLEOTIDE[NUM_NEOCLEOTIDE] = {'A', 'C', 'G', 'T'};

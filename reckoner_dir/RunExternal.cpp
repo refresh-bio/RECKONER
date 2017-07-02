@@ -4,13 +4,13 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* Version: 1.0
+* Version: 1.1
 *
 */
 
 #include "RunExternal.h"
 #include <cstring>
-#ifdef WIN32
+#if defined(WIN32) || defined(_WIN32)
 #include <direct.h>
 #include <shlwapi.h>
 #else
@@ -47,15 +47,12 @@ bool RunExternal::runKMCTools(int cutoff, const std::string& inputFileName, cons
     return true;
 }
 
-bool RunExternal::runKMC(int kmerLength, const std::vector<std::string>& inputFilesNames, const std::string& outputFileName, const std::string& tempName) {
+bool RunExternal::runKMC(int kmerLength, const std::vector<std::string>& inputFilesNames, const std::string& outputFileName, const std::string& listFileName, const std::string& tempName) {
     if (!createDirectory(tempName)) {
         std::cerr << "ERROR: cannot create KMC temp directory." << std::endl;
         Log::get_stream() << "ERROR: cannot create KMC temp directory." << std::endl;
         return false;
     }
-
-    std::string listFileName = inputFilesNames.front();
-    listFileName += LIST_FILE_EXTENSION;
 
     std::ofstream listFileStream(listFileName);
     if (!listFileStream.is_open()) {
@@ -100,15 +97,12 @@ bool RunExternal::runKMC(int kmerLength, const std::vector<std::string>& inputFi
     return true;
 }
 
-bool RunExternal::runKMCToBuffer(std::size_t kmerLength, const std::vector<std::string>& inputFilesNames, const std::string& outputFileName, const std::string& tempName, char* buffer, const int bufferSize) {
+bool RunExternal::runKMCToBuffer(std::size_t kmerLength, const std::vector<std::string>& inputFilesNames, const std::string& outputFileName, const std::string& listFileName, const std::string& tempName, char* buffer, const int bufferSize) {
     if (!createDirectory(tempName)) {
         std::cerr << "ERROR: cannot create KMC temp directory." << std::endl;
         Log::get_stream() << "ERROR: cannot create KMC temp directory." << std::endl;
         return false;
     }
-
-    std::string listFileName = inputFilesNames.front();
-    listFileName += LIST_FILE_EXTENSION;
 
     std::ofstream listFileStream(listFileName);
     if (!listFileStream.is_open()) {
@@ -158,7 +152,7 @@ void RunExternal::removeKMCFiles(const std::string& fileName) {
     std::remove((fileName + ".kmc_suf").c_str());
 }
 
-#ifdef WIN32 //Windows
+#if defined(WIN32) || defined(_WIN32) //Windows
 
 bool RunExternal::runCommand(std::string command, const std::string& args, unsigned long& processResult, char* buffer /*= NULL*/, const int bufferSize /*= 0*/) {
     // Get directory path
@@ -289,7 +283,7 @@ bool RunExternal::runCommand(std::string command, const std::string& args, unsig
     if (bytesInserted >= 0) {
         fileNameBuffer[bytesInserted] = '\0';
         dirname(fileNameBuffer);
-        command = std::string(fileNameBuffer) + "/" + command;
+        command = std::string(fileNameBuffer) + DIRECTORY_SEPARATOR + command;
     }
 
     if (buffer == NULL) {

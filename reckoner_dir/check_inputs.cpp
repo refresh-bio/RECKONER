@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.0
+ * Version: 1.1
  * 
  */
 
@@ -28,8 +28,8 @@ void C_check_read::check_read_file(const C_arg& c_inst_args, const std::string& 
     f_read.setFileName(read_file_name, read_file_type);
 
     if (!f_read.openFile(FileReader::READ)) {
-        std::cerr << "ERROR: Cannot open " << read_file_name << " for read check" << std::endl;
-        f_log << "ERROR: Cannot open " << read_file_name << " for read check" << std::endl;
+        std::cerr << "ERROR: Cannot open " << read_file_name << " for checking reads." << std::endl;
+        f_log << "ERROR: Cannot open " << read_file_name << " for checking reads." << std::endl;
         exit(EXIT_FAILURE);
     }
 

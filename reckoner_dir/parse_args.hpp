@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.0
+ * Version: 1.1
  * 
  */
 
@@ -30,6 +30,7 @@ public:
     std::string kmc_determine_params_database_name;
     std::string kmc_database_name;
     std::string kmc_filtered_database_name;
+    std::string kmc_list_file_name;
     std::string log_file_name;
 
     std::vector<std::string> error_correction_info_files_names;
@@ -51,6 +52,8 @@ public:
     // constructors
 
     explicit C_arg(int argc, char** argv);
+
+    void extract_name_and_extension(std::string input_file_name, std::string& output_file_name, std::string& output_full_extension, FileReader::FileType& output_file_type);
 
 private:
     // variables

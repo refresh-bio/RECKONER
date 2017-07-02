@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.0
+ * Version: 1.1
  * 
  */
 
@@ -19,8 +19,6 @@
 
 
 
-//#define USE_KMER_MEDIAN
-
 //----------------------------------------------------------------------
 // C_candidate_path
 //----------------------------------------------------------------------
@@ -33,26 +31,18 @@ public:
     std::vector< Single_mod > modified_bases;
 
     double kmers_quality;
-
-#ifdef USE_KMER_MEDIAN
-    std::vector<float> covering_kmers_weight_vector;
-#else
     double covering_kmers_weight;
-#endif
 
     // constructors
 
-    C_candidate_path() : kmers_quality(0.0)
-#ifndef USE_KMER_MEDIAN
-    , covering_kmers_weight(0.0)
-#endif
-    {
-    };
+    C_candidate_path() :
+        kmers_quality(0.0),
+        covering_kmers_weight(0.0) {};
 
     C_candidate_path(const float _covering_kmer_weight, const float _kmer_quality,
-            const std::size_t n_modifications, const char modifications[], const std::vector<std::size_t> mod_pos) :
-    kmers_quality(_kmer_quality),
-    covering_kmers_weight(_covering_kmer_weight) {
+        const std::size_t n_modifications, const char modifications[], const std::vector<std::size_t> mod_pos) :
+        kmers_quality(_kmer_quality),
+        covering_kmers_weight(_covering_kmer_weight) {
         modified_bases.reserve(n_modifications);
         for (std::size_t it = 0; it < n_modifications; ++it) {
             Single_mod mod(mod_pos[it], modifications[it]);
@@ -154,10 +144,6 @@ private:
     std::vector<C_candidate_path>::iterator choose_best_correction(std::vector<C_candidate_path>& candidate_path_vector);
     void modify_errors(std::vector<C_candidate_path>& candidate_path_vector, std::size_t& num_corrected_errors);
     void modify_errors_first_kmer(std::vector<C_candidate_path>& candidate_path_vector, std::size_t& num_corrected_errors1, std::size_t& num_corrected_errors2);
-
-#ifdef USE_KMER_MEDIAN
-    float median(std::vector<float>& kmer_qualities);
-#endif
 };
 #endif	/* CORRECT_READ_HPP */
 

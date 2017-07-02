@@ -4,7 +4,7 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* Version: 1.0
+* Version: 1.1
 *
 */
 
@@ -19,7 +19,7 @@
 void PrepareKMCDb::countKmers() {
     RunExternal runExternal(c_inst_args.n_threads, c_inst_args.kmc_memory);
 
-    if (!runExternal.runKMC(static_cast<int>(c_inst_args.kmer_length), c_inst_args.read_files_names, c_inst_args.kmc_database_name, c_inst_args.prefix)) {
+    if (!runExternal.runKMC(static_cast<int>(c_inst_args.kmer_length), c_inst_args.read_files_names, c_inst_args.kmc_database_name, c_inst_args.kmc_list_file_name, c_inst_args.prefix)) {
         std::cerr << "ERROR: failed to count k-mers." << std::endl;
         Log::get_stream() << "ERROR: failed to count k-mers." << std::endl;
         exit(EXIT_FAILURE);

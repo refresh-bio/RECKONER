@@ -4,8 +4,8 @@
   
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
   
-  Version: 2.3.0
-  Date   : 2015-08-21
+  Version: 3.0.0
+  Date   : 2017-01-28
 */
 
 #ifndef _HBH_MERGER_H
@@ -27,8 +27,8 @@ class CBigKmerBinMerger
 	CBigBinKmerPartQueue* bbkpq;
 	CCompletedBinsCollector* sm_cbc;
 	uint32 kmer_len;
-	uint32 lut_prefix_len;
-	int32 cutoff_min, cutoff_max, counter_max;
+	uint32 lut_prefix_len;	
+	uint32 cutoff_min, cutoff_max, counter_max;
 	CMemoryPool* sm_pmm_merger_suff, *sm_pmm_merger_lut, *sm_pmm_sub_bin_suff, *sm_pmm_sub_bin_lut;
 	int64 sm_mem_part_merger_suff, sm_mem_part_merger_lut, sm_mem_part_sub_bin_suff, sm_mem_part_sub_bin_lut;
 	uchar *sub_bin_suff_buff, *sub_bin_lut_buff;
@@ -51,8 +51,8 @@ CBigKmerBinMerger<KMER_T,SIZE>::CBigKmerBinMerger(CKMCParams& Params, CKMCQueues
 	kmer_len = Params.kmer_len;
 	lut_prefix_len = Params.lut_prefix_len;
 	cutoff_min = Params.cutoff_min;
-	cutoff_max = (int32)Params.cutoff_max;
-	counter_max = (int32)Params.counter_max;
+	cutoff_max = (uint32)Params.cutoff_max;
+	counter_max = (uint32)Params.counter_max;
 	sm_pmm_merger_suff = Queues.sm_pmm_merger_suff;
 	sm_pmm_merger_lut = Queues.sm_pmm_merger_lut;
 	sm_pmm_sub_bin_suff = Queues.sm_pmm_sub_bin_suff;
@@ -94,7 +94,7 @@ void CBigKmerBinMerger<KMER_T, SIZE>::init(int32 bin_id, uint32 _size)
 	}
 
 	uint32 lut_prefix_len = 0;;
-	uint32 n_kmers = 0;
+	uint64 n_kmers = 0;
 	uint64 file_size = 0;
 	FILE* file = NULL;
 	string name;
@@ -174,13 +174,13 @@ void CBigKmerBinMerger<KMER_T, SIZE>::Process()
 			{
 				++n_unique;
 				n_total += count;
-				if (count < (uint32)cutoff_min)
+				if (count < cutoff_min)
 					n_cutoff_min++;
-				else if (count > (uint32)cutoff_max)
+				else if (count > cutoff_max)
 					n_cutoff_max++;
 				else
 				{
-					if (count > (uint32)counter_max)
+					if (count > counter_max)
 						count = counter_max;
 
 					//store
@@ -214,13 +214,13 @@ void CBigKmerBinMerger<KMER_T, SIZE>::Process()
 		}
 		++n_unique;
 		n_total += count;
-		if (count < (uint32)cutoff_min)
+		if (count < cutoff_min)
 			++n_cutoff_min;
-		else if (count > (uint32)cutoff_max)
+		else if (count > cutoff_max)
 			++n_cutoff_max;
 		else
 		{
-			if (count > (uint32)counter_max)
+			if (count > counter_max)
 				count = counter_max;
 
 			//store

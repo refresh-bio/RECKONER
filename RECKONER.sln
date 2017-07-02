@@ -1,13 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.30501.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kmer_counter", "kmc_dir\kmer_counter\kmer_counter.vcxproj", "{8C8B90DA-28B7-4D82-81F3-C0E7CE52D59F}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kmc_tools", "kmc_dir\kmc_tools\kmc_tools.vcxproj", "{F3B0CC94-9DD0-4642-891C-EA08BDA50260}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RECKONER", "reckoner_dir\RECKONER.vcxproj", "{CE4598ED-0CCB-4AEC-8B6A-68770B489B08}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F3B0CC94-9DD0-4642-891C-EA08BDA50260} = {F3B0CC94-9DD0-4642-891C-EA08BDA50260}
+		{8C8B90DA-28B7-4D82-81F3-C0E7CE52D59F} = {8C8B90DA-28B7-4D82-81F3-C0E7CE52D59F}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
