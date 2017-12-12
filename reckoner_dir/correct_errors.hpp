@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.1
+ * Version: 1.1.1
  * 
  */
 
@@ -42,7 +42,6 @@ private:
     const std::string output_file_name;
     const std::string correction_info_file_name;
 
-    std::size_t next_chunk;
     std::priority_queue<size_t, std::vector<size_t>, std::greater<size_t>> waiting_chunks;
     std::mutex waiting_chunks_mutex;
     std::condition_variable available_chunks;
@@ -58,7 +57,6 @@ public:
         f_log(Log::get_stream()),
         output_file_name(_output_file_name),
         correction_info_file_name(_correction_info_file_name),
-        next_chunk(0),
         merging_finished(false)
     {}
 

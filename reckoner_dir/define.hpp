@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.1
+ * Version: 1.1.1
  * 
  */
 
@@ -34,7 +34,7 @@
 
 
 // definitions
-#define VERSION                    "1.1"
+#define VERSION                    "1.1.1"
 #define NUM_NEOCLEOTIDE            4
 #define A                          0
 #define C                          1

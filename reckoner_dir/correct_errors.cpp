@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.1
+ * Version: 1.1.1
  * 
  */
 
@@ -99,7 +99,7 @@ void C_merge_temporary_files::signal_file_availability(size_t file_number) {
 
 
 //----------------------------------------------------------------------
-// Signal, that all file to merge have been created.
+// Signal, that all files to merge have been created.
 //----------------------------------------------------------------------
 
 void C_merge_temporary_files::signal_finish() {
@@ -112,30 +112,30 @@ void C_merge_temporary_files::signal_finish() {
 
 
 //----------------------------------------------------------------------
-// Body of thread merging and removing of temporary files.
+// Body of merging and removing of temporary files thread.
 //----------------------------------------------------------------------
 
 void C_merge_temporary_files::operator()() {
     std::ofstream output_file;
 
+    size_t next_chunk = 0;
+
     while (true) {
-        size_t current_file_no;
         { // for unique_lock
             std::unique_lock<std::mutex> lck(waiting_chunks_mutex);
 
-            available_chunks.wait(lck, [this] {return (!waiting_chunks.empty() && waiting_chunks.top() == next_chunk) || (merging_finished && waiting_chunks.empty()); });
+            available_chunks.wait(lck, [this, next_chunk] {return (!waiting_chunks.empty() && waiting_chunks.top() == next_chunk) || (merging_finished && waiting_chunks.empty()); });
 
             if (merging_finished && waiting_chunks.empty()) {
                 break;
             }
             else {
-                current_file_no = waiting_chunks.top();
                 waiting_chunks.pop();
             }
         }
 
         // The first temporary file will be the beginning of the output file.
-        if (current_file_no == 0) {
+        if (next_chunk == 0) {
             output_file.open(output_file_name, std::ios_base::binary | std::ios_base::app);
 
             if (!output_file.is_open()) {
@@ -218,15 +218,10 @@ void C_correct_errors::operator()(CKMCFile& kmc_file) {
         if (!fastqReader.getChunk(readsChunk)) {
             break;
         }
-        std::size_t current_chunk = 0;
-        { // for lock_guard
-            std::lock_guard<std::mutex> next_chunk_guard(next_chunk_mutex);
-            current_chunk = next_chunk++;
-        }
 
-        correct_errors_in_reads_single_chunk(error_correction_info_file_name, kmc_file, current_chunk, correct_read, readsChunk);
+        correct_errors_in_reads_single_chunk(error_correction_info_file_name, kmc_file, readsChunk.getChunkNo(), correct_read, readsChunk);
 
-        merge_files.signal_file_availability(current_chunk);
+        merge_files.signal_file_availability(readsChunk.getChunkNo());
     }
 
     { // for lock_guard

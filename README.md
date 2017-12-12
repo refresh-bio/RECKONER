@@ -57,5 +57,3 @@ Examples:
 + Homepage: http://sun.aei.polsl.pl/REFRESH/
 + Contact: maciej.dlugosz@polsl.pl
 + RECKONER is distributed under license GPL 3.
-
---

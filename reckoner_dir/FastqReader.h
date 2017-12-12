@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  *
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.1
+ * Version: 1.1.1
  *
 */
 
@@ -86,21 +86,23 @@ public:
 class ReadsChunk {
 private:
     std::size_t pos;
+    std::size_t chunkNo;
     MemoryPool* memoryPool;
 
     char* buffer;
     std::size_t size;
 
-    void setChunk(char* _buffer, std::size_t bufferSize, MemoryPool* _memoryPool);
+    void setChunk(char* _buffer, std::size_t bufferSize, std::size_t _chunkNo, MemoryPool* _memoryPool);
     void releaseMemory();
 
 public:
-    ReadsChunk() : pos(0), memoryPool(NULL), buffer(NULL), size(0) {}
+    ReadsChunk() : pos(0), chunkNo(0), memoryPool(NULL), buffer(NULL), size(0) {}
 
     ~ReadsChunk() {
         releaseMemory();
     }
     bool getLine(std::string& line);
+    std::size_t getChunkNo() const { return chunkNo; }
 
     friend class FastqReaderWrapper;
 };
@@ -111,11 +113,13 @@ class FastqReaderWrapper {
     MemoryPool memoryPool;
     FastqReader reader;
 
+	typedef std::tuple<char*, size_t, size_t> PartIndicator;
+
     bool finished;
 
     std::mutex partsAvailableMutex;
     std::condition_variable partsAvailable;
-    std::queue<std::pair<char*, size_t>> partsQueue;
+    std::queue<PartIndicator> partsQueue;
 
 public:
     FastqReaderWrapper(const FastqReaderWrapper&) = delete;

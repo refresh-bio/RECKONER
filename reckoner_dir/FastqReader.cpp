@@ -4,7 +4,7 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* Version: 1.1
+* Version: 1.1.1
 *
 */
 
@@ -282,12 +282,13 @@ bool FastqReader::SetNames(std::string _input_file_name, FileReader::FileType _f
 // Set passed memory.
 //----------------------------------------------------------------------
 
-void ReadsChunk::setChunk(char* _buffer, std::size_t bufferSize, MemoryPool* _memoryPool) {
+void ReadsChunk::setChunk(char* _buffer, std::size_t bufferSize, std::size_t _chunkNo, MemoryPool* _memoryPool) {
     if (buffer != NULL) {
         memoryPool->releaseBuffer(buffer);
     }
     buffer = _buffer;
     size = bufferSize;
+    chunkNo = _chunkNo;
     pos = 0;
 
     memoryPool = _memoryPool;
@@ -377,10 +378,12 @@ void FastqReaderWrapper::operator()() {
 
     char* buffer;
     size_t bufferSize;
+    size_t chunkNo = 0;
     while (reader.GetPart(buffer, bufferSize)) {
         std::unique_lock<std::mutex> lck(partsAvailableMutex);
-        partsQueue.push(std::pair<char*, std::size_t>(buffer, bufferSize));
+        partsQueue.push(PartIndicator(buffer, bufferSize, chunkNo));
         partsAvailable.notify_one();
+        ++chunkNo;
     }
     finished = true;
     partsAvailable.notify_all();
@@ -395,6 +398,7 @@ void FastqReaderWrapper::operator()() {
 bool FastqReaderWrapper::getChunk(ReadsChunk& readsChunk) {
     char* buffer;
     size_t bufferSize;
+    size_t chunkNo;
 
     readsChunk.releaseMemory();
 
@@ -402,7 +406,7 @@ bool FastqReaderWrapper::getChunk(ReadsChunk& readsChunk) {
         std::unique_lock<std::mutex> lck(partsAvailableMutex);
         partsAvailable.wait(lck, [this] { return !partsQueue.empty() || finished; });
         if (!partsQueue.empty()) {
-            std::tie(buffer, bufferSize) = partsQueue.front();
+            std::tie(buffer, bufferSize, chunkNo) = partsQueue.front();
             partsQueue.pop();
         }
         else {
@@ -410,7 +414,7 @@ bool FastqReaderWrapper::getChunk(ReadsChunk& readsChunk) {
         }
     }
 
-    readsChunk.setChunk(buffer, bufferSize, &memoryPool);
+    readsChunk.setChunk(buffer, bufferSize, chunkNo, &memoryPool);
 
     return true;
 }
