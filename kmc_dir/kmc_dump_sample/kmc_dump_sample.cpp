@@ -7,8 +7,8 @@
 
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
 
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #include "stdafx.h"
@@ -17,8 +17,28 @@
 
 void print_info(void);
 
+//----------------------------------------------------------------------------------
+// Check if --help or --version was used
+bool help_or_version(int argc, char** argv)
+{
+	const std::string version = "--version";
+	const std::string help = "--help";
+	for (int i = 1; i < argc; ++i)
+	{
+		if (argv[i] == version || argv[i] == help)
+			return true;
+	}
+	return false;
+}
+
 int _tmain(int argc, char* argv[])
 {
+	if (argc == 1 || help_or_version(argc, argv))
+	{
+		print_info();
+		return 0;
+	}
+
 	CKMCFile kmer_data_base;
 	int32 i;
 	uint32 min_count_to_set = 0;
@@ -130,13 +150,13 @@ int _tmain(int argc, char* argv[])
 // -------------------------------------------------------------------------
 void print_info(void)
 {
-	std::cout << "KMC dump ver. " << KMC_VER << " (" << KMC_DATE << ")\n";
-	std::cout << "\nUsage:\nkmc_dump [options] <kmc_database> <output_file>\n";
-	std::cout << "Parameters:\n";
-	std::cout << "<kmc_database> - kmer_counter's output\n";
-	std::cout << "Options:\n";
-	std::cout << "-ci<value> - exclude k-mers occurring less than <value> times\n";
-	std::cout << "-cx<value> - exclude k-mers occurring more of than <value> times\n";
+	std::cout << "KMC dump ver. " << KMC_VER << " (" << KMC_DATE << ")\n"
+			  << "\nUsage:\nkmc_dump [options] <kmc_database> <output_file>\n"
+			  << "Parameters:\n"
+			  << "<kmc_database> - kmer_counter's output\n"
+			  << "Options:\n"
+			  << "-ci<value> - exclude k-mers occurring less than <value> times\n"
+			  << "-cx<value> - exclude k-mers occurring more of than <value> times\n";
 };
 
 // ***** EOF

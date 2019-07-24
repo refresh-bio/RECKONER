@@ -4,8 +4,8 @@ The homepage of the KMC project is http://sun.aei.polsl.pl/kmc
 
 Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
 
-Version: 3.0.0
-Date   : 2017-01-28
+Version: 3.1.1
+Date   : 2019-05-19
 */
 #ifndef _SMALL_SORT_H
 #define _SMALL_SORT_H
@@ -551,3 +551,4 @@ void CSmallSort<SIZE>::shell_sort_1_10(CKmer<SIZE>* ptr, uint32 size)
 
 #endif
 	
+// ***** EOF

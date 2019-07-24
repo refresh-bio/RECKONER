@@ -7,14 +7,19 @@ on the error correction algorithm BLESS and utilizes the following tools:
 
 RECKONER is available for Linux and Windows.
 
-### Compilation
-To compile RECKONER in Linux use g++ version 4.9.2 or newer
-by typing "make" in the project directory, as a result
-there will be generated executable files in the "bin" directory.
+### Building
+Building RECKONER in Linux requires presence of Python 3 libraries
+(install python3-dev package in Debian or python3-devel package in Fedora).
+To compile use g++ 4.9.2 or newer
+by typing "make" in the project directory. As a result
+executable files will be generated in the "bin" directory.
 
 To compile RECKONER in Windows open file "RECKONER.sln"
 in Visual Studio 2015, select "Release" from the drop-down list.
 Then click "Build" and "Build Solution" from the main menu.
+
+You can also use precompiled binaries. In Windows there could
+be need to download Visual C++ 2015 Redistributable.
 
 ### Running
 To run RECKONER in Linux execute file "reckoner" from the "bin" directory 
@@ -41,7 +46,7 @@ Instead of using -read option the input FASTQ files
 can be specified at the end of the command line.
 
 To correct paired-end files simply pass both of them
-as two single-end files.
+as two single-end files. RECKONER will keep the pairs in files.
 
 Result files will be created in the output directory with a "corrected" suffix.
 

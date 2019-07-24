@@ -4,8 +4,8 @@
   
   Authors: Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #ifndef _BUNDLE_H
@@ -13,7 +13,6 @@
 #include "config.h"
 #include "defs.h"
 #include "kmer.h"
-#include "libs/asmlib.h"
 
 //************************************************************************************************************
 // CBundle and CInput are CORE classes of this application. CInputs are nodes of binary tree which 
@@ -103,7 +102,7 @@ public:
 	//deprecated
 	//void CopyFrom(CBundleData<SIZE>& rhs) //similar to assign operator but I want assign operator deleted, this method should be used carefully. this->size and rhs.size must quals
 	//{
-	//	A_memcpy(kmers_with_counters, rhs.kmers_with_counters, rhs.insert_pos * sizeof(CKmerWithCounter));
+	//	memcpy(kmers_with_counters, rhs.kmers_with_counters, rhs.insert_pos * sizeof(CKmerWithCounter));
 	//	insert_pos = rhs.insert_pos;
 	//	get_pos = 0;
 	//}
@@ -270,7 +269,7 @@ public:
 		case CounterOpType::FROM_DB2:
 			return counter2;
 		case CounterOpType::NONE://should never be here
-			std::cout << "Trying to use undefined counter calculation mode!\n";
+			std::cerr << "Error: trying to use undefined counter calculation mode!\n";
 			exit(1);
 		}
 		return 0;

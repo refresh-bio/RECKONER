@@ -4,8 +4,8 @@ The homepage of the KMC project is http://sun.aei.polsl.pl/kmc
 
 Authors: Sebastian Deorowicz and Agnieszka Debudaj-Grabysz
 
-Version: 3.0.0
-Date   : 2017-01-28
+Version: 3.1.1
+Date   : 2019-05-19
 */
 
 #ifndef _KMER_API_H
@@ -354,7 +354,7 @@ public:
 //-----------------------------------------------------------------------
 // The operator ==
 //-----------------------------------------------------------------------
-	inline bool operator==(const CKmerAPI &kmer)
+	inline bool operator==(const CKmerAPI &kmer) const
 	{
 			if(kmer.kmer_length != kmer_length)
 				return false;
@@ -370,7 +370,7 @@ public:
 //-----------------------------------------------------------------------
 // Operator < . If arguments differ in length a result is undefined
 //-----------------------------------------------------------------------
-	inline bool operator<(const CKmerAPI &kmer)
+	inline bool operator<(const CKmerAPI &kmer) const
 	{
 			if(kmer.kmer_length != kmer_length)
 				return false;					
@@ -452,12 +452,20 @@ public:
 	{
 		kmer.resize(no_of_rows);
 		uint32 offset = 62 - ((kmer_length - 1 + byte_alignment) & 31) * 2;
-		for (int32 i = no_of_rows - 1; i >= 1; --i)
+		if (offset)
 		{
-			kmer[i] = kmer_data[i] >> offset;
-			kmer[i] += kmer_data[i - 1] << (64 - offset);
+			for (int32 i = no_of_rows - 1; i >= 1; --i)
+			{
+				kmer[i] = kmer_data[i] >> offset;
+				kmer[i] += kmer_data[i - 1] << (64 - offset);
+			}
+			kmer[0] = kmer_data[0] >> offset;
 		}
-		kmer[0] = kmer_data[0] >> offset;
+		else
+		{
+			for (int32 i = no_of_rows - 1; i >= 0; --i)			
+				kmer[i] = kmer_data[i];						
+		}
 	}
 
 	//-----------------------------------------------------------------------
@@ -519,8 +527,8 @@ public:
 		if (no_of_rows == 1)
 		{
 			*kmer_data <<= 2 * byte_alignment;
-			byte1 = reinterpret_cast<uchar*>(kmer_data)+8 - size_in_byte;
-			byte2 = reinterpret_cast<uchar*>(kmer_data)+7;
+			byte1 = reinterpret_cast<uchar*>(kmer_data) + 8 - size_in_byte;
+			byte2 = reinterpret_cast<uchar*>(kmer_data) + 7;
 
 			for (uint32 i_bytes = 0; i_bytes < size_in_byte / 2; ++i_bytes)
 			{
@@ -572,7 +580,7 @@ public:
 			}
 			else
 			{
-				// Move bits left
+				// move bits left
 
 				for (uint32 i_rows = no_of_rows - 1; i_rows > 0; --i_rows)
 				{
@@ -607,8 +615,8 @@ public:
 
 			kmer_data[0] |= to_less_sign_row;
 
-			byte1 = reinterpret_cast<uchar*>(kmer_data)+8 - size_in_byte;
-			byte2 = reinterpret_cast<uchar*>(kmer_data)+7;
+			byte1 = reinterpret_cast<uchar*>(kmer_data) + 8 - size_in_byte;
+			byte2 = reinterpret_cast<uchar*>(kmer_data) + 7;
 
 			for (uint32 i_bytes = 0; i_bytes < size_in_byte / 2; ++i_bytes)
 			{
@@ -662,9 +670,7 @@ public:
 				 min_mmr = cur_mmr;
 		 }
 		 return min_mmr.get();
-	 }
-	
-	 
+	 }	
 };
 
 

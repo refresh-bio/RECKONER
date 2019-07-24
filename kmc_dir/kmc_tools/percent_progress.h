@@ -4,8 +4,8 @@
   
   Authors: Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #ifndef _PERCENT_PROGRESS_H
@@ -19,6 +19,7 @@
 //************************************************************************************************************
 class CPercentProgress
 {
+	bool ignore_rest = false;
 	bool hide_progress = false;
 	struct CDisplayItem
 	{

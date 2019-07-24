@@ -6,8 +6,8 @@ The homepage of the KMC project is http://sun.aei.polsl.pl/kmc
 The source codes are based on codes written by Dennis and published:
 http://allmybrain.com/2008/06/10/timing-cc-code-on-linux/
 
-Version: 3.0.0
-Date   : 2017-01-28
+Version: 3.1.1
+Date   : 2019-05-19
 */
 
 #ifdef WIN32
@@ -104,13 +104,17 @@ double CThreadWatch::getElapsedTime()
 
 
 #else
+#include <cstring>
 
+CStopWatch::CStopWatch() {
+	memset(&timer, 0, sizeof(timer));
+}
 void CStopWatch::startTimer() {
-	gettimeofday(&(timer.start), NULL);
+	gettimeofday(&(timer.start), nullptr);
 }
 
 void CStopWatch::stopTimer() {
-	gettimeofday(&(timer.stop), NULL);
+	gettimeofday(&(timer.stop), nullptr);
 }
 
 double CStopWatch::getElapsedTime() {
@@ -163,5 +167,6 @@ double CThreadWatch::getElapsedTime()
 }
 #endif
 
-
 #endif
+
+// ***** EOF

@@ -4,24 +4,26 @@
 
   Authors: Sebastian Deorowicz and Agnieszka Debudaj-Grabysz
 
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 
 #ifndef _KMER_DEFS_H
 #define _KMER_DEFS_H
 
-#define KMC_VER		"3.0.0"
-#define KMC_DATE	"2017-01-28"
+#define KMC_VER		"3.1.1"
+#define KMC_DATE	"2019-05-19"
 
+#ifndef MIN
 #define MIN(x,y)	((x) < (y) ? (x) : (y))
+#endif
 
 #ifndef WIN32
 	#include <stdint.h>
 	#include <stdio.h>
 	#include <stdlib.h>
-	#include <math.h>
+	#include <cmath>
 	#include <string.h>
 
 	#define _TCHAR	char
@@ -35,7 +37,6 @@
 	#include <stdio.h>
 	#include <ext/algorithm>
 	#include <iostream>
-	using namespace std;
 
 #else
 	#define my_fopen    fopen

@@ -4,8 +4,8 @@
   
   Authors: Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #include "stdafx.h"
@@ -22,32 +22,32 @@ CKMC_header::CKMC_header(std::string file_name)
 	FILE* file = my_fopen(file_name.c_str(), "rb");
 	if (!file)
 	{
-		std::cout << "Error: Cannot open file " << file_name << "\n";
+		std::cerr << "Error: Cannot open file " << file_name << "\n";
 		exit(1);
 	}
 	char marker[4];
 	if (fread(marker, 1, 4, file) != 4)
 	{
-		std::cout << "Error while reading start marker in " << file_name << "\n";
+		std::cerr << "Error while reading start marker in " << file_name << "\n";
 		exit(1);
 	}
 
 	if (strncmp(marker, "KMCP", 4) != 0)
 	{
-		std::cout << "Error: wrong start marker in " << file_name << "\n";
+		std::cerr << "Error: wrong start marker in " << file_name << "\n";
 		exit(1);
 	}
 
 	my_fseek(file, -4, SEEK_END);
 	if (fread(marker, 1, 4, file) != 4)
 	{
-		std::cout << "Error while reading end marker in " << file_name << "\n";
+		std::cerr << "Error while reading end marker in " << file_name << "\n";
 		exit(1);
 	}
 
 	if (strncmp(marker, "KMCP", 4) != 0)
 	{
-		std::cout << "Error: wrong end marker in " << file_name << "\n";
+		std::cerr << "Error: wrong end marker in " << file_name << "\n";
 		exit(1);
 	}
 

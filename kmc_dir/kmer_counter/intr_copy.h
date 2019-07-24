@@ -4,8 +4,8 @@
   
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #ifndef _INTR_COPY_H
@@ -50,7 +50,7 @@ template <unsigned SIZE, unsigned MODE> struct IntrCopy128
 {
 	static inline void Copy(void *_dest, void *_src)
 	{
-		cout << "Error\n";
+		cerr << "Error\n";
 	}
 };
 
@@ -88,3 +88,5 @@ template <unsigned SIZE> struct IntrCopy128<SIZE, 0>
 
 
 #endif
+
+// ***** EOF

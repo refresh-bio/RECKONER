@@ -4,13 +4,12 @@ The homepage of the KMC project is http://sun.aei.polsl.pl/kmc
 
 Authors: Marek Kokot
 
-Version: 3.0.0
-Date   : 2017-01-28
+Version: 3.1.1
+Date   : 2019-05-19
 */
 
 #include "stdafx.h"
 #include "fastq_filter.h"
-#include "asmlib_wrapper.h"
 #include <numeric>
 
 using namespace std;
@@ -36,7 +35,7 @@ kmc_api(kmc_api)
 	n_min_kmers = Params.n_min_kmers;
 	kmer_len = Params.kmer_len;
 	output_part_size = Params.mem_part_pmm_fastq_reader;
-	trim = Params.trim;
+	mode = Params.filter_mode;
 }
 
 /*****************************************************************************************************************************/
@@ -53,7 +52,7 @@ CWFastqFilter::CWFastqFilter(CFilteringParams& Params, CFilteringQueues& Queues,
 /*****************************************************************************************************************************/
 void CFastqFilter::Process()
 {
-	if (trim)
+	if (mode == CFilteringParams::FilterMode::trim)
 	{
 		if (input_file_type == CFilteringParams::file_type::fastq && output_file_type == CFilteringParams::file_type::fastq)
 			ProcessImpl<TrimFastqToFastqHelper>();
@@ -63,9 +62,20 @@ void CFastqFilter::Process()
 			ProcessImpl<TrimFastaToFastaHelper>();
 		else
 		{
-			cout << "Error: this file type is not supported by filter operation\n";
+			cerr << "Error: this file type is not supported by filter operation\n";
 			exit(1);
 		}
+	}
+	else if (mode == CFilteringParams::FilterMode::hard_mask)
+	{
+		if (input_file_type == CFilteringParams::file_type::fastq && output_file_type == CFilteringParams::file_type::fastq)
+			ProcessImpl<HardMaskFastqToFastqHelper>();
+		else if (input_file_type == CFilteringParams::file_type::fastq && output_file_type == CFilteringParams::file_type::fasta)
+			ProcessImpl<HardMaskFastqToFastaHelper>();
+		else if (input_file_type == CFilteringParams::file_type::fasta && output_file_type == CFilteringParams::file_type::fasta)
+			ProcessImpl<HardMaskFastaToFastaHelper>();
+		else
+			cerr << "Error: this file type is not supported by filter operation\n";
 	}
 	else
 	{
@@ -77,7 +87,7 @@ void CFastqFilter::Process()
 			ProcessImpl<FastaToFastaHelper>();
 		else
 		{
-			cout << "Error: this file type is not supported by filter operation\n";
+			cerr << "Error: this file type is not supported by filter operation\n";
 			exit(1);
 		}
 	}
@@ -140,6 +150,30 @@ bool CFastqFilter::FilterReadTrim()
 
 
 	return true;
+}
+void CFastqFilter::HardMask()
+{
+	uint32 read_len = static_cast<uint32>(seq_desc.read_end - seq_desc.read_start);
+	read.assign((char*)input_part + seq_desc.read_start, read_len);
+	kmc_api.GetCountersForRead(read, counters);
+	uchar* read_in = input_part + seq_desc.read_start;
+	uint32 read_in_pos = 0;
+	for (uint32 counter_pos = 0; counter_pos < counters.size(); ++counter_pos)
+	{
+		if (counters[counter_pos] < n_min_kmers)
+		{
+			while (read_in_pos < counter_pos + kmer_len)
+			{
+				output_part[output_part_pos++] = 'N';
+				read_in_pos++;
+			}
+		}
+		else if (read_in_pos <= counter_pos)
+			output_part[output_part_pos++] = read_in[read_in_pos++];
+	}
+	while (read_in_pos < read_len)
+		output_part[output_part_pos++] = read_in[read_in_pos++];
+	output_part[output_part_pos++] = '\n';
 }
 
 /*****************************************************************************************************************************/
@@ -354,9 +388,9 @@ public:
 	}
 	void SendToOutBuf() const
 	{
-		A_memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_header_start, owner.seq_desc.quality_header_start - owner.seq_desc.read_header_start + 1);
+		memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_header_start, owner.seq_desc.quality_header_start - owner.seq_desc.read_header_start + 1);
 		owner.output_part_pos += owner.seq_desc.quality_header_start - owner.seq_desc.read_header_start + 1;
-		A_memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.quality_header_end, owner.seq_desc.end - owner.seq_desc.quality_header_end);
+		memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.quality_header_end, owner.seq_desc.end - owner.seq_desc.quality_header_end);
 		owner.output_part_pos += owner.seq_desc.end - owner.seq_desc.quality_header_end;
 	}
 
@@ -384,7 +418,7 @@ public:
 	void SendToOutBuf() const
 	{
 		owner.input_part[owner.seq_desc.read_header_start] = '>';
-		A_memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_header_start, owner.seq_desc.quality_header_start - owner.seq_desc.read_header_start);
+		memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_header_start, owner.seq_desc.quality_header_start - owner.seq_desc.read_header_start);
 		owner.output_part_pos += owner.seq_desc.quality_header_start - owner.seq_desc.read_header_start;
 	}
 	bool NextSeq() const
@@ -411,7 +445,7 @@ public:
 
 	void SendToOutBuf() const
 	{
-		A_memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_header_start, owner.seq_desc.end - owner.seq_desc.read_header_start);
+		memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_header_start, owner.seq_desc.end - owner.seq_desc.read_header_start);
 		owner.output_part_pos += owner.seq_desc.end - owner.seq_desc.read_header_start;
 	}
 	bool NextSeq() const
@@ -437,15 +471,15 @@ public:
 	}
 	void SendToOutBuf() const
 	{
-		A_memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_header_start, owner.seq_desc.read_header_end - owner.seq_desc.read_header_start);
+		memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_header_start, owner.seq_desc.read_header_end - owner.seq_desc.read_header_start);
 		owner.output_part_pos += owner.seq_desc.read_header_end - owner.seq_desc.read_header_start;
 		owner.output_part[owner.output_part_pos++] = '\n';
-		A_memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_start, owner.trim_len);
+		memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_start, owner.trim_len);
 		owner.output_part_pos += owner.trim_len;
 		owner.output_part[owner.output_part_pos++] = '\n';
 		owner.output_part[owner.output_part_pos++] = '+';
 		owner.output_part[owner.output_part_pos++] = '\n';
-		A_memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.quality_start, owner.trim_len);
+		memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.quality_start, owner.trim_len);
 		owner.output_part_pos += owner.trim_len;
 		owner.output_part[owner.output_part_pos++] = '\n';
 	}
@@ -474,11 +508,11 @@ public:
 	}
 	void SendToOutBuf() const
 	{
-		A_memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_header_start, owner.seq_desc.read_header_end - owner.seq_desc.read_header_start);
+		memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_header_start, owner.seq_desc.read_header_end - owner.seq_desc.read_header_start);
 		owner.output_part[owner.output_part_pos] = '>';
 		owner.output_part_pos += owner.seq_desc.read_header_end - owner.seq_desc.read_header_start;
 		owner.output_part[owner.output_part_pos++] = '\n';
-		A_memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_start, owner.trim_len);
+		memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_start, owner.trim_len);
 		owner.output_part_pos += owner.trim_len;
 		owner.output_part[owner.output_part_pos++] = '\n';
 	}
@@ -508,10 +542,10 @@ public:
 	}
 	void SendToOutBuf() const
 	{
-		A_memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_header_start, owner.seq_desc.read_header_end - owner.seq_desc.read_header_start);
+		memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_header_start, owner.seq_desc.read_header_end - owner.seq_desc.read_header_start);
 		owner.output_part_pos += owner.seq_desc.read_header_end - owner.seq_desc.read_header_start;
 		owner.output_part[owner.output_part_pos++] = '\n';
-		A_memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_start, owner.trim_len);
+		memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_start, owner.trim_len);
 		owner.output_part_pos += owner.trim_len;
 		owner.output_part[owner.output_part_pos++] = '\n';
 	}
@@ -527,4 +561,90 @@ public:
 	}
 };
 
+class CFastqFilter::HardMaskFastqToFastqHelper
+{
+	CFastqFilter& owner;
+public:
+	HardMaskFastqToFastqHelper(CFastqFilter& owner) : owner(owner) {}
+	uint64 GetReqSize() const
+	{
+		return owner.seq_desc.read_header_end - owner.seq_desc.read_header_start + 1 +
+			owner.seq_desc.read_end - owner.seq_desc.read_start + 1 +
+			2 +
+			owner.seq_desc.quality_end - owner.seq_desc.quality_start + 1;
+	}
+	void SendToOutBuf() const
+	{
+		memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_header_start, owner.seq_desc.read_header_end - owner.seq_desc.read_header_start);
+		owner.output_part_pos += owner.seq_desc.read_header_end - owner.seq_desc.read_header_start;
+		owner.output_part[owner.output_part_pos++] = '\n';
+		owner.HardMask();
+		owner.output_part[owner.output_part_pos++] = '+';
+		owner.output_part[owner.output_part_pos++] = '\n';
+		memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.quality_start, owner.seq_desc.quality_end - owner.seq_desc.quality_start);
+		owner.output_part_pos += owner.seq_desc.quality_end - owner.seq_desc.quality_start;
+		owner.output_part[owner.output_part_pos++] = '\n';		
+	}
+	bool NextSeq() const
+	{
+		return owner.NextSeqFastq();
+	}
+	bool FilterRead() const
+	{
+		return true;
+	}
+};
+class CFastqFilter::HardMaskFastqToFastaHelper
+{
+	CFastqFilter& owner;
+public:
+	HardMaskFastqToFastaHelper(CFastqFilter& owner) : owner(owner) {}
+	uint64 GetReqSize() const
+	{
+		return owner.seq_desc.read_header_end - owner.seq_desc.read_header_start + 1 +
+			owner.seq_desc.read_end - owner.seq_desc.read_start + 1;
+	}
+	void SendToOutBuf() const
+	{
+		owner.input_part[owner.seq_desc.read_header_start] = '>';
+		memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_header_start, owner.seq_desc.read_header_end - owner.seq_desc.read_header_start);
+		owner.output_part_pos += owner.seq_desc.read_header_end - owner.seq_desc.read_header_start;
+		owner.output_part[owner.output_part_pos++] = '\n';
+		owner.HardMask();		
+	}
+	bool NextSeq() const
+	{
+		return owner.NextSeqFastq();
+	}
+	bool FilterRead() const
+	{
+		return true;
+	}
+};
+class CFastqFilter::HardMaskFastaToFastaHelper
+{
+	CFastqFilter& owner;
+public:
+	HardMaskFastaToFastaHelper(CFastqFilter& owner) : owner(owner) {}
+	uint64 GetReqSize() const
+	{
+		return owner.seq_desc.read_header_end - owner.seq_desc.read_header_start + 1 +
+			owner.seq_desc.read_end - owner.seq_desc.read_start + 1;
+	}
+	void SendToOutBuf() const
+	{
+		memcpy(owner.output_part + owner.output_part_pos, owner.input_part + owner.seq_desc.read_header_start, owner.seq_desc.read_header_end - owner.seq_desc.read_header_start);
+		owner.output_part_pos += owner.seq_desc.read_header_end - owner.seq_desc.read_header_start;
+		owner.output_part[owner.output_part_pos++] = '\n';
+		owner.HardMask();	
+	}
+	bool NextSeq() const
+	{
+		return owner.NextSeqFasta();
+	}
+	bool FilterRead() const
+	{
+		return true;
+	}
+};
 // ***** EOF

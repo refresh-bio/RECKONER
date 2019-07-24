@@ -4,8 +4,8 @@
   
   Authors: Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #ifndef _DUMP_WRITER_H
@@ -126,7 +126,7 @@ protected:
 		file = fopen(file_src.c_str(), "wb");
 		if (!file)
 		{
-			std::cout << "Error: cannot open file: " << file_src << "\n";
+			std::cerr << "Error: cannot open file: " << file_src << "\n";
 			exit(1);
 		}
 		buf_pos = 0;
@@ -139,7 +139,7 @@ protected:
 		if (counter >= cutoff_min && counter <= cutoff_max)
 		{
 			if (counter > counter_max)
-				counter_max = counter_max;
+				counter = counter_max;
 			kmerToStr(kmer, buf + buf_pos);
 			buf[buf_pos + kmer_len] = '\t';
 			counter_len = CNumericConversions::Int2PChar(counter, (uchar*)(buf + buf_pos + kmer_len + 1));

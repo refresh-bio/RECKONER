@@ -4,8 +4,8 @@
   
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #ifndef _PARAMS_H
@@ -17,8 +17,7 @@
 #include <vector>
 #include <string>
 
-typedef enum {fasta, fastq, multiline_fasta} input_type;
-
+typedef enum {fasta, fastq, multiline_fasta, bam} input_type;
 
 using namespace std;
 
@@ -34,13 +33,12 @@ struct CKMCParams {
 	int p_sr;							// no. of threads for 2nd stage
 	int p_ci;							// do not count k-mers occurring less than
 	int64 p_cx;							// do not count k-mers occurring more than
-	int64 p_cs;							// maximal counter value
-	bool p_quake;						// use Quake-compatibile counting
+	int64 p_cs;							// maximal counter value	
 	bool p_strict_mem;					// use strict memory limit mode
-	bool p_mem_mode;					// use RAM instead of disk
-	int p_quality;						// lowest quality
+	bool p_mem_mode;					// use RAM instead of disk	
 	input_type p_file_type;				// input in FASTA format
 	bool p_verbose;						// verbose mode
+	bool p_without_output = false;		// do not create output files 
 #ifdef DEVELOP_MODE
 	bool p_verbose_log = false;         // verbose log
 #endif
@@ -56,7 +54,10 @@ struct CKMCParams {
 	string output_file_name;
 	string working_directory;
 	input_type file_type;
-	
+
+	string json_summary_file_name = "";
+	bool without_output = false;
+
 	uint32 lut_prefix_len;
 
 	uint32 KMER_T_size;
@@ -74,9 +75,7 @@ struct CKMCParams {
 	int64 mem_part_pmm_reads;
 	int64 mem_tot_pmm_reads;
 	int64 mem_part_pmm_radix_buf;
-	int64 mem_tot_pmm_radix_buf;
-	int64 mem_part_pmm_prob;
-	int64 mem_tot_pmm_prob;
+	int64 mem_tot_pmm_radix_buf;	
 	int64 mem_part_pmm_cnts_sort;	
 	int64 mem_tot_pmm_stats;
 	int64 mem_part_pmm_stats;
@@ -97,10 +96,8 @@ struct CKMCParams {
 	int signature_len;
 	int cutoff_min;			// exclude k-mers occurring less than times
 	int64 cutoff_max;			// exclude k-mers occurring more than times
-	int64 counter_max;		// maximal counter value
-	bool use_quake;			// use Quake's counting based on qualities
+	int64 counter_max;		// maximal counter value	
 	bool use_strict_mem;	// use strict memory limit mode
-	int lowest_quality;		// lowest quality value	    
 	bool both_strands;		// find canonical representation of each k-mer
 	bool mem_mode;			// use RAM instead of disk
 
@@ -151,11 +148,9 @@ struct CKMCParams {
 		p_smme = p_smso = p_smun = 0;
 		p_ci = 2;
 		p_cx = 1000000000;
-		p_cs = 255;
-		p_quake = false;
+		p_cs = 255;		
 		p_strict_mem = false;
-		p_mem_mode = false;
-		p_quality = 33;
+		p_mem_mode = false;		
 		p_file_type = fastq;
 		p_verbose = false;
 		p_both_strands = true;
@@ -174,6 +169,8 @@ struct CKMCQueues
 
 	vector<CBinaryPackQueue*> binary_pack_queues;
 
+	CBamTaskManager* bam_task_manager = nullptr;
+
 	// Queues
 	CInputFilesQueue *input_files_queue;
 	CPartQueue *part_queue;
@@ -184,7 +181,9 @@ struct CKMCQueues
 	CExpanderPackDesc* epd;
 	CBinQueue *bq;
 	CKmerQueue *kq;
-	CMemoryPool *pmm_bins, *pmm_fastq, *pmm_reads, *pmm_radix_buf, *pmm_prob, *pmm_stats, *pmm_binary_file_reader;
+	CMemoryPool *pmm_bins, *pmm_reads, *pmm_radix_buf, *pmm_stats, *pmm_binary_file_reader;
+	CMemoryPoolWithBamSupport *pmm_fastq;
+	CMissingEOL_at_EOF_counter* missingEOL_at_EOF_counter{};
 	CMemoryBins *memory_bins;
 	CMemoryPool* pmm_small_k_buf, *pmm_small_k_completer;
 

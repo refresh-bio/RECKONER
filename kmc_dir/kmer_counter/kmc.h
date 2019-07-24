@@ -4,8 +4,8 @@
   
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #ifndef _KMC_H
@@ -30,7 +30,6 @@
 #include "kb_storer.h"
 #include "s_mapper.h"
 #include "splitter.h"
-#include "asmlib_wrapper.h"
 #include "cpu_info.h"
 #include "small_sort.h"
 
@@ -43,14 +42,10 @@
 #include "bkb_merger.h"
 #include "bkb_writer.h"
 #include "binary_reader.h"
-#include "libs/vectorclass/vectorclass.h"
 
 using namespace std;
 
-template<typename KMER_T, unsigned SIZE, bool QUAKE_MODE>
-class CSmallKWrapper;
-
-template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> class CKMC {
+template <unsigned SIZE> class CKMC {
 	bool initialized;
 
 	CStopWatch w0, heuristic_time , w1, w2, w3;//w3 - strict memory time
@@ -67,23 +62,24 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> class CKMC {
 	vector<thread> gr2_1, gr2_2, gr2_3;						// thread groups for 2nd stage
 
 	uint64 n_unique, n_cutoff_min, n_cutoff_max, n_total, n_reads, tmp_size, tmp_size_strict_mem, max_disk_usage, n_total_super_kmers;
+	bool was_small_k_opt;
 
 	// Threads
 	vector<CWStatsFastqReader*> w_stats_fastqs;
-	vector<CWStatsSplitter<false>*> w_stats_splitters;
+	vector<CWStatsSplitter*> w_stats_splitters;
 	vector<CWFastqReader*> w_fastqs;
-	vector<CWSplitter<QUAKE_MODE>*> w_splitters;
+	vector<CWSplitter*> w_splitters;
 
 	CWBinaryFilesReader* w_bin_file_reader;
 
 	CWKmerBinStorer *w_storer;
 
-	CWKmerBinReader<KMER_T, SIZE>* w_reader;
-	vector<CWKmerBinSorter<KMER_T, SIZE>*> w_sorters;
+	CWKmerBinReader<SIZE>* w_reader;
+	vector<CWKmerBinSorter<SIZE>*> w_sorters;
 	CWKmerBinCompleter *w_completer;
 
 	void SetThreads1Stage();
-	void SetThreads2Stage(vector<int64>& sorted_sizes);
+	void SetThreads2Stage();
 	void SetThreadsStrictMemoryMode();
 
 	void AdjustMemoryLimitsStrictMemoryMode();
@@ -92,10 +88,13 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> class CKMC {
 
 	void ShowSettingsStage1();
 	void ShowSettingsStage2();
+	void ShowSettingsSmallKOpt();
 
-	friend class CSmallKWrapper<KMER_T, SIZE, QUAKE_MODE>;
 	bool AdjustMemoryLimitsSmallK();	
 	template<typename COUNTER_TYPE>	bool ProcessSmallKOptimization();
+
+
+	void CheckAndReportMissingEOLs();
 	
 public:
 	CKMC();
@@ -103,64 +102,36 @@ public:
 	
 	void SetParams(CKMCParams &_Params);
 	bool Process();
-	void GetStats(double &time1, double &time2, double &time3, uint64 &_n_unique, uint64 &_n_cutoff_min, uint64 &_n_cutoff_max, uint64 &_n_total, uint64 &_n_reads, uint64 &_tmp_size, uint64 &_tmp_size_strict_mem, uint64 &_max_disk_usage, uint64& _n_total_super_kmers);
+	void GetStats(double &time1, double &time2, double &time3, uint64 &_n_unique, uint64 &_n_cutoff_min, uint64 &_n_cutoff_max, uint64 &_n_total, uint64 &_n_reads, uint64 &_tmp_size, uint64 &_tmp_size_strict_mem, uint64 &_max_disk_usage, uint64& _n_total_super_kmers, bool& _was_small_k_opt);
+	void SaveStatsInJSON(bool was_small_k_opt);
 };
-
-
-template<typename KMER_T, unsigned SIZE>
-class CSmallKWrapper<KMER_T, SIZE, true>
-{
-public:
-	static bool Process(CKMC<KMER_T, SIZE, true>& ptr);
-};
-
-template<typename KMER_T, unsigned SIZE>
-class CSmallKWrapper<KMER_T, SIZE, false>
-{
-public:
-	static bool Process(CKMC<KMER_T, SIZE, false>& ptr);
-};
-
-template<typename KMER_T, unsigned SIZE>
-bool CSmallKWrapper<KMER_T, SIZE, true>::Process(CKMC<KMER_T, SIZE, true>& ptr)
-{
-	return ptr.template ProcessSmallKOptimization<float>();
-}
-
-template<typename KMER_T, unsigned SIZE>
-bool CSmallKWrapper<KMER_T, SIZE, false>::Process(CKMC<KMER_T, SIZE, false>& ptr)
-{
-	if ((uint64)ptr.Params.cutoff_max > ((1ull << 32) - 1))
-		return ptr.template ProcessSmallKOptimization<uint64>();
-	else
-		return ptr.template ProcessSmallKOptimization<uint32>();
-}
 
 //----------------------------------------------------------------------------------
-template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> CKMC<KMER_T, SIZE, QUAKE_MODE>::CKMC()
+template <unsigned SIZE> CKMC<SIZE>::CKMC()
 {
 	initialized   = false;
 	Params.kmer_len      = 0;
 	Params.n_readers     = 1;
 	Params.n_splitters   = 1;
 	Params.n_sorters     = 1;	
-	Queues.s_mapper = NULL;
+	Queues.s_mapper = nullptr;
 }
 
 //----------------------------------------------------------------------------------
-template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> CKMC<KMER_T, SIZE, QUAKE_MODE>::~CKMC()
+template <unsigned SIZE> CKMC<SIZE>::~CKMC()
 {
 }
 
 //----------------------------------------------------------------------------------
 // Set params of the k-mer counter
-template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZE, QUAKE_MODE>::SetParams(CKMCParams &_Params)
+template <unsigned SIZE> void CKMC<SIZE>::SetParams(CKMCParams &_Params)
 {
 	Params = _Params;
 	Params.kmer_len	= Params.p_k;
+	Params.file_type = Params.p_file_type;
 
 	Params.n_bins = Params.p_n_bins;
-
+	
 	if (Params.kmer_len % 32 == 0)
 		Params.max_x = 0;
 	else
@@ -180,11 +151,10 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZ
 	// Thresholds for counters
 	Params.cutoff_min   = Params.p_ci;
 	Params.cutoff_max   = Params.p_cx;
-	Params.counter_max  = Params.p_cs;
-	Params.use_quake    = Params.p_quake;
+	Params.counter_max  = Params.p_cs;	
 
-	Params.lowest_quality = Params.p_quality;
 	Params.both_strands   = Params.p_both_strands;
+	Params.without_output = Params.p_without_output;
 	Params.use_strict_mem = Params.p_strict_mem;
 	Params.mem_mode		  = Params.p_mem_mode;
 
@@ -209,17 +179,15 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZ
 	//Params.max_mem_size  = NORM(((uint64) Params.p_m) << 30, (uint64) MIN_MEM << 30, 1024ull << 30);
 	Params.max_mem_size = NORM(((uint64)Params.p_m) * 1000000000ull, (uint64)MIN_MEM * 1000000000ull, 1024ull * 1000000000ull);
 
-	Params.file_type		= Params.p_file_type;
+	
 
-	Params.KMER_T_size = sizeof(KMER_T);
+	Params.KMER_T_size = sizeof(CKmer<SIZE>);
 
 	initialized = true; 
-
-	SetMemcpyCacheLimit(8);			// Sets the asmlib's memcpy function to make copy without use of cache memory
 }
 
 //----------------------------------------------------------------------------------
-template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZE, QUAKE_MODE>::SetThreads1Stage()
+template <unsigned SIZE> void CKMC<SIZE>::SetThreads1Stage()
 {
 	if (!Params.p_sf || !Params.p_sp || !Params.p_sr)
 	{
@@ -237,7 +205,7 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZ
 			FILE* tmp = my_fopen(p.c_str(), "rb");
 			if (!tmp)
 			{
-				cout << "Cannot open file: " << p.c_str();
+				cerr << "Error: cannot open file: " << p.c_str();
 				exit(1);
 			}
 			my_fseek(tmp, 0, SEEK_END);
@@ -254,13 +222,17 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZ
 				++n_allowed_files;
 			Params.n_readers = MIN(n_allowed_files, MAX(1, cores / 2));
 		}
+		else if (Params.file_type == bam)
+		{
+			Params.n_readers = MAX(1, Params.n_threads / 2); //TODO: for now, split distribute threads equally for bam input, it seems to work quite well but I didnt perform detailed tests
+		}
 		else
 			Params.n_readers = 1;
 		Params.n_splitters = MAX(1, cores - Params.n_readers);
 	}
 }
 //----------------------------------------------------------------------------------
-template<typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZE, QUAKE_MODE>::SetThreads2Stage(vector<int64>& sorted_sizes)
+template<unsigned SIZE> void CKMC<SIZE>::SetThreads2Stage()
 {	
 	if (!Params.p_sf || !Params.p_sp || !Params.p_sr)
 	{
@@ -269,7 +241,7 @@ template<typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZE
 	}
 }
 //----------------------------------------------------------------------------------
-template<typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZE, QUAKE_MODE>::SetThreadsStrictMemoryMode()
+template<unsigned SIZE> void CKMC<SIZE>::SetThreadsStrictMemoryMode()
 {
 	Params.sm_n_mergers = Params.p_smme;
 	Params.sm_n_uncompactors = Params.p_smun;
@@ -284,7 +256,7 @@ template<typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZE
 
 //----------------------------------------------------------------------------------
 
-template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZE, QUAKE_MODE>::AdjustMemoryLimitsStrictMemoryMode()
+template <unsigned SIZE> void CKMC<SIZE>::AdjustMemoryLimitsStrictMemoryMode()
 {
 	int64 m_rest = Params.max_mem_size;
 
@@ -336,29 +308,20 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZ
 }
 
 //----------------------------------------------------------------------------------
-template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZE, QUAKE_MODE>::AdjustMemoryLimitsStage2()
+template <unsigned SIZE> void CKMC<SIZE>::AdjustMemoryLimitsStage2()
 {
 	// Memory for 2nd stage
 	// Settings for memory manager of radix internal buffers
-	Params.mem_part_pmm_radix_buf = (256 * BUFFER_WIDTHS[sizeof(KMER_T)/8] + ALIGNMENT) * sizeof(KMER_T);
+	Params.mem_part_pmm_radix_buf = (256 * BUFFER_WIDTHS[sizeof(CKmer<SIZE>)/8] + ALIGNMENT) * sizeof(CKmer<SIZE>);
 
 	Params.mem_tot_pmm_radix_buf = Params.mem_part_pmm_radix_buf * Params.n_sorters * MAGIC_NUMBER;
 
-
-	if (Params.use_quake)
-	{
-		Params.mem_part_pmm_prob = (CKmerBinSorter<KMER_T, SIZE>::PROB_BUF_SIZE + 1) * sizeof(double);
-		Params.mem_tot_pmm_prob = Params.n_sorters * Params.mem_part_pmm_prob;
-	}
-	else
-		Params.mem_part_pmm_prob = Params.mem_tot_pmm_prob = 0;		
-
-	Params.max_mem_stage2 = Params.max_mem_size - Params.mem_tot_pmm_radix_buf - Params.mem_tot_pmm_prob;
+	Params.max_mem_stage2 = Params.max_mem_size - Params.mem_tot_pmm_radix_buf;
 }
 
 //----------------------------------------------------------------------------------
 // Adjust the memory limits for queues and other large data structures
-template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZE, QUAKE_MODE>::AdjustMemoryLimits()
+template <unsigned SIZE> bool CKMC<SIZE>::AdjustMemoryLimits()
 {
 	// Memory for splitter internal buffers
 	int64 m_rest = Params.max_mem_size;  
@@ -369,6 +332,7 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	
 	// Settings for memory manager of FASTQ buffers
 	Params.fastq_buffer_size = 32 << 20;
+
 	do {
 		if(Params.fastq_buffer_size & (Params.fastq_buffer_size-1))
 			Params.fastq_buffer_size &= Params.fastq_buffer_size - 1;
@@ -396,10 +360,10 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	m_rest -= Params.mem_tot_pmm_binary_file_reader;
 
 	// Subtract memory for bin collectors internal buffers
-	m_rest -= Params.n_splitters * Params.bin_part_size * sizeof(KMER_T);
+	m_rest -= Params.n_splitters * Params.bin_part_size * sizeof(CKmer<SIZE>);
 
 	// Settings for memory manager of reads
-	Params.mem_part_pmm_reads = (CSplitter<QUAKE_MODE>::MAX_LINE_SIZE + 1) * sizeof(double);
+	Params.mem_part_pmm_reads = (CSplitter::MAX_LINE_SIZE + 1) * sizeof(double);
 	Params.mem_tot_pmm_reads  = Params.mem_part_pmm_reads * 2 * Params.n_splitters;
 	m_rest -= Params.mem_tot_pmm_reads;
 
@@ -437,89 +401,147 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 
 //----------------------------------------------------------------------------------
 // Show the settings of the KMC (in verbose mode only)
-template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZE, QUAKE_MODE>::ShowSettingsStage1()
+template <unsigned SIZE> void CKMC<SIZE>::ShowSettingsStage1()
 {
 	if(!Params.verbose)
 		return;
 
-	cout << "\n********** Used parameters: **********\n";
+	cerr << "\n********** Used parameters: **********\n";
 
-	cout << "No. of input files           : " << Params.input_file_names.size() << "\n";
-	cout << "Output file name             : " << Params.output_file_name << "\n";
-	cout << "No. of working directories   : " << 1 << "\n";
-	cout << "Input format                 : "; 
+	cerr << "No. of input files           : " << Params.input_file_names.size() << "\n";
+	cerr << "Output file name             : " << Params.output_file_name << "\n";
+	cerr << "No. of working directories   : " << 1 << "\n";
+	cerr << "Input format                 : "; 
 	switch (Params.file_type)
 	{
 	case fasta:
-		cout << "FASTA\n";
+		cerr << "FASTA\n";
 		break;
 	case fastq:
-		cout << "FASTQ\n";
+		cerr << "FASTQ\n";
 		break;
 	case multiline_fasta:
-		cout << "MULTI LINE FASTA\n";
+		cerr << "MULTI LINE FASTA\n";
+		break;
+	case bam:
+		cerr << "BAM\n";
 		break;
 	}
-	cout << "\n";
-	cout << "k-mer length                 : " << Params.kmer_len << "\n";
-	cout << "Max. k-mer length            : " << MAX_K << "\n";
-	cout << "Signature length             : " << Params.signature_len << "\n"; 
-	cout << "Min. count threshold         : " << Params.cutoff_min << "\n";
-	cout << "Max. count threshold         : " << Params.cutoff_max << "\n";
-	cout << "Max. counter value           : " << Params.counter_max << "\n";
-	cout << "Type of counters             : " << (Params.use_quake ? "Quake-compatibile\n" : "direct\n");
-	if(Params.use_quake)
-		cout << "Lowest quality value         : " << Params.lowest_quality << "\n";
-	cout << "Both strands                 : " << (Params.both_strands ? "true\n" : "false\n");	
-	cout << "RAM olny mode                : " << (Params.mem_mode ? "true\n" : "false\n");
+	cerr << "\n";
+	cerr << "k-mer length                 : " << Params.kmer_len << "\n";
+	cerr << "Max. k-mer length            : " << MAX_K << "\n";
+	cerr << "Signature length             : " << Params.signature_len << "\n"; 
+	cerr << "Min. count threshold         : " << Params.cutoff_min << "\n";
+	cerr << "Max. count threshold         : " << Params.cutoff_max << "\n";
+	cerr << "Max. counter value           : " << Params.counter_max << "\n";	
+	cerr << "Both strands                 : " << (Params.both_strands ? "true\n" : "false\n");
+	cerr << "RAM only mode                : " << (Params.mem_mode ? "true\n" : "false\n");
 
-	cout << "\n******* Stage 1 configuration: *******\n";
-	cout << "\n";
-	cout << "No. of bins                  : " << Params.n_bins << "\n";
-	cout << "Bin part size                : " << Params.bin_part_size << "\n";
-	cout << "Input buffer size            : " << Params.fastq_buffer_size << "\n";
+	cerr << "\n******* Stage 1 configuration: *******\n";
+	cerr << "\n";
+	cerr << "No. of bins                  : " << Params.n_bins << "\n";
+	cerr << "Bin part size                : " << Params.bin_part_size << "\n";
+	cerr << "Input buffer size            : " << Params.fastq_buffer_size << "\n";
 	
-	cout << "\n";
+	cerr << "\n";
 
-	cout << "No. of readers               : " << Params.n_readers << "\n";
-	cout << "No. of splitters             : " << Params.n_splitters << "\n";
-	cout << "\n";
+	cerr << "No. of readers               : " << Params.n_readers << "\n";
+	cerr << "No. of splitters             : " << Params.n_splitters << "\n";
+	cerr << "\n";
 
-	cout << "Max. mem. size               : " << setw(5) << (Params.max_mem_size / 1000000) << "MB\n";
-	cout << "Max. mem. per storer         : " << setw(5) << (Params.max_mem_storer / 1000000) << "MB\n";
-	cout << "Max. mem. for single package : " << setw(5) << (Params.max_mem_storer_pkg / 1000000) << "MB\n";
-	cout << "\n";
+	cerr << "Max. mem. size               : " << setw(5) << (Params.max_mem_size / 1000000) << "MB\n";
+	cerr << "Max. mem. per storer         : " << setw(5) << (Params.max_mem_storer / 1000000) << "MB\n";
+	cerr << "Max. mem. for single package : " << setw(5) << (Params.max_mem_storer_pkg / 1000000) << "MB\n";
+	cerr << "\n";
 
-	cout << "Max. mem. for PMM (bin parts): " << setw(5) << (Params.mem_tot_pmm_bins / 1000000) << "MB\n";
-	cout << "Max. mem. for PMM (FASTQ)    : " << setw(5) << (Params.mem_tot_pmm_fastq / 1000000) << "MB\n";
-	cout << "Max. mem. for PMM (reads)    : " << setw(5) << (Params.mem_tot_pmm_reads / 1000000) << "MB\n";
-	cout << "Max. mem. for PMM (b. reader): " << setw(5) << (Params.mem_tot_pmm_binary_file_reader / 1000000) << "MB\n";
+	cerr << "Max. mem. for PMM (bin parts): " << setw(5) << (Params.mem_tot_pmm_bins / 1000000) << "MB\n";
+	cerr << "Max. mem. for PMM (FASTQ)    : " << setw(5) << (Params.mem_tot_pmm_fastq / 1000000) << "MB\n";
+	cerr << "Max. mem. for PMM (reads)    : " << setw(5) << (Params.mem_tot_pmm_reads / 1000000) << "MB\n";
+	cerr << "Max. mem. for PMM (b. reader): " << setw(5) << (Params.mem_tot_pmm_binary_file_reader / 1000000) << "MB\n";
 
-	cout << "\n";
+	cerr << "\n";
 }
 
 //----------------------------------------------------------------------------------
 // Show the settings of the KMC (in verbose mode only)
-template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZE, QUAKE_MODE>::ShowSettingsStage2()
+template <unsigned SIZE> void CKMC<SIZE>::ShowSettingsStage2()
 {
 	if (!Params.verbose)
 		return;
 
-	cout << "\n******* Stage 2 configuration: *******\n";
+	cerr << "\n******* Stage 2 configuration: *******\n";
 
-	cout << "No. of threads               : " << Params.n_sorters << "\n";
+	cerr << "No. of threads               : " << Params.n_sorters << "\n";
 	
-	cout << "\n";
+	cerr << "\n";
 
-	cout << "Max. mem. for 2nd stage      : " << setw(5) << (Params.max_mem_stage2 / 1000000) << "MB\n";
-	cout << "\n";	
+	cerr << "Max. mem. for 2nd stage      : " << setw(5) << (Params.max_mem_stage2 / 1000000) << "MB\n";
+	cerr << "\n";	
 }
 
 //----------------------------------------------------------------------------------
-template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZE, QUAKE_MODE>::AdjustMemoryLimitsSmallK() 
+// Show the settings of the KMC (in verbose mode only)
+template <unsigned SIZE> void CKMC<SIZE>::ShowSettingsSmallKOpt()
+{
+	if (!Params.verbose)
+		return;
+
+	cerr << "\n******* configuration for small k mode: *******\n";
+
+	cerr << "No. of input files           : " << Params.input_file_names.size() << "\n";
+	cerr << "Output file name             : " << Params.output_file_name << "\n";
+	cerr << "Input format                 : ";
+	switch (Params.file_type)
+	{
+	case fasta:
+		cerr << "FASTA\n";
+		break;
+	case fastq:
+		cerr << "FASTQ\n";
+		break;
+	case multiline_fasta:
+		cerr << "MULTI LINE FASTA\n";
+		break;
+	case bam:
+		cerr << "BAM\n";
+		break;
+	}
+	cerr << "\n";
+	cerr << "k-mer length                 : " << Params.kmer_len << "\n";
+	cerr << "Max. k-mer length            : " << MAX_K << "\n";
+	cerr << "Min. count threshold         : " << Params.cutoff_min << "\n";
+	cerr << "Max. count threshold         : " << Params.cutoff_max << "\n";
+	cerr << "Max. counter value           : " << Params.counter_max << "\n";
+	
+	cerr << "Both strands                 : " << (Params.both_strands ? "true\n" : "false\n");
+	cerr << "Input buffer size            : " << Params.fastq_buffer_size << "\n";
+
+	cerr << "\n";
+
+	cerr << "No. of readers               : " << Params.n_readers << "\n";
+	cerr << "No. of splitters             : " << Params.n_splitters << "\n";
+	cerr << "\n";
+
+	cerr << "Max. mem. size               : " << setw(5) << (Params.max_mem_size / 1000000) << "MB\n";
+	cerr << "\n";
+
+	cerr << "Max. mem. for PMM (FASTQ)    : " << setw(5) << (Params.mem_tot_pmm_fastq / 1000000) << "MB\n";
+	cerr << "Part. mem. for PMM (FASTQ)   : " << setw(5) << (Params.mem_part_pmm_fastq / 1000000) << "MB\n";
+	cerr << "Max. mem. for PMM (reads)    : " << setw(5) << (Params.mem_tot_pmm_reads / 1000000) << "MB\n";
+	cerr << "Part. mem. for PMM (reads)   : " << setw(5) << (Params.mem_part_pmm_reads / 1000000) << "MB\n";
+	cerr << "Max. mem. for PMM (b. reader): " << setw(5) << (Params.mem_tot_pmm_binary_file_reader / 1000000) << "MB\n";
+	cerr << "Part. mem. for PMM (b. reader): " << setw(5) << (Params.mem_part_pmm_binary_file_reader / 1000000) << "MB\n";
+
+	cerr << "\n";
+
+}
+//----------------------------------------------------------------------------------
+template <unsigned SIZE> bool CKMC<SIZE>::AdjustMemoryLimitsSmallK() 
 {
 	if (Params.kmer_len > 13) 
 		return false;
+
+	bool small_k_opt_required = Params.kmer_len < Params.signature_len;	
 
 	uint32 counter_size = 4; //in bytes
 	if ((uint64)Params.cutoff_max > ((1ull << 32) - 1))
@@ -530,7 +552,7 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	int tmp_fastq_buffer_size = 0;
 	int64 tmp_mem_part_pmm_fastq = 0;
 	int64 tmp_mem_tot_pmm_fastq = 0;
-	int64 tmp_mem_part_pmm_reads = (CSplitter<QUAKE_MODE>::MAX_LINE_SIZE + 1) * sizeof(double);
+	int64 tmp_mem_part_pmm_reads = (CSplitter::MAX_LINE_SIZE + 1) * sizeof(double);
 	int64 tmp_mem_tot_pmm_reads = 0;
 	int64 tmp_mem_part_pmm_binary_file_reader = 0;
 	int64 tmp_mem_tot_pmm_binary_file_reader = 0;
@@ -538,31 +560,45 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	int64 tmp_mem_part_small_k_buf = (1ll << 2 * Params.kmer_len) * counter_size;//no of possible k-mers * counter size
 	int64 tmp_mem_tot_small_k_buf = 0;
 
-	int64 mim_mem_for_readers = tmp_n_readers * (16 << 20);
-	
-	tmp_fastq_buffer_size = 1 << 24;
-	tmp_mem_part_pmm_fastq = tmp_fastq_buffer_size + CFastqReader::OVERHEAD_SIZE;
-	tmp_mem_tot_pmm_fastq = tmp_mem_part_pmm_fastq * (tmp_n_readers + tmp_n_splitters + 96);
+	int64 additional_buffers = 96;
 
-	tmp_mem_part_pmm_binary_file_reader = 1ll << 27;
-	tmp_mem_tot_pmm_binary_file_reader = tmp_mem_part_pmm_binary_file_reader * tmp_n_readers * 3;
-
-	int64 mem_rest = Params.max_mem_size - tmp_mem_tot_pmm_fastq - tmp_mem_tot_pmm_binary_file_reader;
-
-	while (tmp_n_splitters)
+	while (true)
 	{
+		int64 mim_mem_for_readers = tmp_n_readers * (16 << 20);
+		tmp_fastq_buffer_size = 32 << 20; //important for bam reading performance, previously 1 << 24
+		tmp_mem_part_pmm_fastq = tmp_fastq_buffer_size + CFastqReader::OVERHEAD_SIZE;
+		tmp_mem_tot_pmm_fastq = tmp_mem_part_pmm_fastq * (tmp_n_readers + tmp_n_splitters + additional_buffers);
+
+		tmp_mem_part_pmm_binary_file_reader = 1ll << 27;
+		tmp_mem_tot_pmm_binary_file_reader = tmp_mem_part_pmm_binary_file_reader * tmp_n_readers * 3;
+
+		int64 mem_rest = Params.max_mem_size - tmp_mem_tot_pmm_fastq - tmp_mem_tot_pmm_binary_file_reader;
+
 		tmp_mem_tot_pmm_reads = tmp_mem_part_pmm_reads * 3 * tmp_n_splitters;
 		tmp_mem_tot_small_k_buf = tmp_mem_part_small_k_buf * tmp_n_splitters;
 
 		if (tmp_mem_tot_pmm_reads + tmp_mem_tot_small_k_buf + mim_mem_for_readers < mem_rest)
 			break;
 
-		--tmp_n_splitters;
+		if (additional_buffers)
+			additional_buffers = additional_buffers / 2 + additional_buffers / 4;
+		else if (tmp_n_readers < tmp_n_splitters)
+			--tmp_n_splitters;
+		else
+			--tmp_n_readers;
+
+		if (!tmp_n_readers || !tmp_n_splitters)
+		{
+			if (small_k_opt_required)
+			{
+				//Should never be here
+				cerr << "Error: Internal error occurred during small k adjustment, please report this via https://github.com/refresh-bio/KMC/issues";
+				exit(1);
+			}
+			return false;
+		}
 	}
 
-	if (!tmp_n_splitters)
-		return false;
-	
 	Params.n_splitters = tmp_n_splitters;
 	Params.n_readers = tmp_n_readers;
 	Params.fastq_buffer_size = tmp_fastq_buffer_size;
@@ -579,42 +615,68 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 }
 
 //----------------------------------------------------------------------------------
-template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> 
+template <unsigned SIZE>
+void CKMC<SIZE>::CheckAndReportMissingEOLs()
+{
+	auto n_missing = Queues.missingEOL_at_EOF_counter->Get();
+	if (n_missing)	
+		std::cerr << "Warning: in " << n_missing << " input file(s) there was not end of line character at EOF.\n";
+}
+
+//----------------------------------------------------------------------------------
+template <unsigned SIZE> 
 template<typename COUNTER_TYPE>
-bool CKMC<KMER_T, SIZE, QUAKE_MODE>::ProcessSmallKOptimization()
-{		
-	vector<CWSmallKSplitter<QUAKE_MODE, COUNTER_TYPE>*> w_small_k_splitters; //For small k values only
+bool CKMC<SIZE>::ProcessSmallKOptimization()
+{	
+	ShowSettingsSmallKOpt();
+	vector<CWSmallKSplitter<COUNTER_TYPE>*> w_small_k_splitters; //For small k values only
 
 	w1.startTimer();
 	Queues.input_files_queue = new CInputFilesQueue(Params.input_file_names);
 	Queues.part_queue = new CPartQueue(Params.n_readers);
 
-	Queues.pmm_fastq = new CMemoryPool(Params.mem_tot_pmm_fastq, Params.mem_part_pmm_fastq);
+	Queues.pmm_fastq = new CMemoryPoolWithBamSupport(Params.mem_tot_pmm_fastq, Params.mem_part_pmm_fastq);
 	Queues.pmm_binary_file_reader = new CMemoryPool(Params.mem_tot_pmm_binary_file_reader, Params.mem_part_pmm_binary_file_reader);
 	Queues.pmm_reads = new CMemoryPool(Params.mem_tot_pmm_reads, Params.mem_part_pmm_reads);
 	Queues.pmm_small_k_buf = new CMemoryPool(Params.mem_tot_small_k_buf, Params.mem_part_small_k_buf);
+
+	Queues.missingEOL_at_EOF_counter = new CMissingEOL_at_EOF_counter;
 
 	w_small_k_splitters.resize(Params.n_splitters);
 
 	for (int i = 0; i < Params.n_splitters; ++i)
 	{
-		w_small_k_splitters[i] = new CWSmallKSplitter<QUAKE_MODE, COUNTER_TYPE>(Params, Queues);
+		w_small_k_splitters[i] = new CWSmallKSplitter<COUNTER_TYPE>(Params, Queues);
 		gr1_2.push_back(thread(std::ref(*w_small_k_splitters[i])));
 	}
 
 	w_fastqs.resize(Params.n_readers);
-	Queues.binary_pack_queues.resize(Params.n_readers);
-	for (int i = 0; i < Params.n_readers; ++i)
+	if (Params.file_type != bam)
 	{
-		Queues.binary_pack_queues[i] = new CBinaryPackQueue;
-		w_fastqs[i] = new CWFastqReader(Params, Queues, Queues.binary_pack_queues[i]);
-		gr1_1.push_back(thread(std::ref(*w_fastqs[i])));
+		Queues.binary_pack_queues.resize(Params.n_readers);
+		for (int i = 0; i < Params.n_readers; ++i)
+		{
+			Queues.binary_pack_queues[i] = new CBinaryPackQueue;
+			w_fastqs[i] = new CWFastqReader(Params, Queues, Queues.binary_pack_queues[i]);
+			gr1_1.push_back(thread(std::ref(*w_fastqs[i])));
+		}
 	}
+	else
+	{
+		Queues.bam_task_manager = new CBamTaskManager;
+		for (int i = 0; i < Params.n_readers; ++i)
+		{			
+			w_fastqs[i] = new CWFastqReader(Params, Queues, nullptr);
+			gr1_1.push_back(thread(std::ref(*w_fastqs[i])));
+		}
+	}
+
 	w_bin_file_reader = new CWBinaryFilesReader(Params, Queues);
 	thread bin_file_reader_th(std::ref(*w_bin_file_reader));
 
 	for (auto& t : gr1_1)
 		t.join();
+
 	for (auto& t : gr1_2)
 		t.join();
 
@@ -623,8 +685,12 @@ bool CKMC<KMER_T, SIZE, QUAKE_MODE>::ProcessSmallKOptimization()
 
 	bin_file_reader_th.join();
 	delete w_bin_file_reader;
+
 	for (auto& ptr : Queues.binary_pack_queues)
 		delete ptr;
+
+	if (Params.file_type == bam)
+		delete Queues.bam_task_manager;
 
 	vector<CSmallKBuf<COUNTER_TYPE>> results(Params.n_splitters);
 
@@ -675,10 +741,8 @@ bool CKMC<KMER_T, SIZE, QUAKE_MODE>::ProcessSmallKOptimization()
 
 	
 	uint32 counter_size = 0;
-	if (Params.use_quake)
-		counter_size = 4;
-	else
-		counter_size = min(BYTE_LOG(Params.cutoff_max), BYTE_LOG(Params.counter_max));
+
+	counter_size = min(BYTE_LOG(Params.cutoff_max), BYTE_LOG(Params.counter_max));
 
 	for (Params.lut_prefix_len = 1; Params.lut_prefix_len < 16; ++Params.lut_prefix_len)
 	{
@@ -705,7 +769,7 @@ bool CKMC<KMER_T, SIZE, QUAKE_MODE>::ProcessSmallKOptimization()
 
 	Queues.pmm_small_k_completer = new CMemoryPool(Params.mem_tot_small_k_completer, Params.mem_part_small_k_completer);
 
-	CSmallKCompleter<QUAKE_MODE> small_k_completer(Params, Queues);
+	CSmallKCompleter small_k_completer(Params, Queues);
 	small_k_completer.Complete(results[0]);
 	small_k_completer.GetTotal(n_unique, n_cutoff_min, n_cutoff_max);
 
@@ -716,25 +780,33 @@ bool CKMC<KMER_T, SIZE, QUAKE_MODE>::ProcessSmallKOptimization()
 	delete Queues.pmm_reads;
 	delete Queues.pmm_small_k_buf;
 	w2.stopTimer();
-	cout << "\n";
+	cerr << "\n";
+	
+	CheckAndReportMissingEOLs();
+	delete Queues.missingEOL_at_EOF_counter;
+
 	return true;
 }
 
 //----------------------------------------------------------------------------------
 // Run the counter
-template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZE, QUAKE_MODE>::Process()
+template <unsigned SIZE> bool CKMC<SIZE>::Process()
 {
 	if (!initialized)
 		return false;
 
-
+	was_small_k_opt = false;
 	if (AdjustMemoryLimitsSmallK())
 	{
+		was_small_k_opt = true;
 		if (Params.verbose)
 		{
-			cout << "\nSmall k optimization on!\n";
+			cerr << "\nInfo: Small k optimization on!\n";
 		}
-		return CSmallKWrapper<KMER_T, SIZE, QUAKE_MODE>::Process(*this);		
+		if ((uint64)Params.cutoff_max > ((1ull << 32) - 1))
+			return ProcessSmallKOptimization<uint64>();
+		else
+			return ProcessSmallKOptimization<uint32>();		
 	}
 
 	int32 bin_id;
@@ -763,22 +835,28 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	Queues.epd = new CExpanderPackDesc(Params.n_bins);
 	Queues.bq = new CBinQueue(1);
 
-	
-	
 
 	// Create memory manager
 	Queues.pmm_binary_file_reader = new CMemoryPool(Params.mem_tot_pmm_binary_file_reader, Params.mem_part_pmm_binary_file_reader);
 	Queues.pmm_bins = new CMemoryPool(Params.mem_tot_pmm_bins, Params.mem_part_pmm_bins);
-	Queues.pmm_fastq = new CMemoryPool(Params.mem_tot_pmm_fastq, Params.mem_part_pmm_fastq);
+	Queues.pmm_fastq = new CMemoryPoolWithBamSupport(Params.mem_tot_pmm_fastq, Params.mem_part_pmm_fastq);
 	Queues.pmm_reads = new CMemoryPool(Params.mem_tot_pmm_reads, Params.mem_part_pmm_reads);
 	Queues.pmm_stats = new CMemoryPool(Params.mem_tot_pmm_stats, Params.mem_part_pmm_stats);
 
-	Queues.binary_pack_queues.resize(Params.n_readers);
-	for (int i = 0; i < Params.n_readers; ++i)
-	{
-		Queues.binary_pack_queues[i] = new CBinaryPackQueue;
-	}
+	Queues.missingEOL_at_EOF_counter = new CMissingEOL_at_EOF_counter;
 
+	if (Params.file_type != bam)
+	{
+		Queues.binary_pack_queues.resize(Params.n_readers);
+		for (int i = 0; i < Params.n_readers; ++i)
+		{
+			Queues.binary_pack_queues[i] = new CBinaryPackQueue;
+		}
+	}
+	else //for bam
+	{
+		Queues.bam_task_manager = new CBamTaskManager;
+	}
 	w_bin_file_reader = new CWBinaryFilesReader(Params, Queues, false);
 	Queues.stats_part_queue = new CStatsPartQueue(Params.n_readers, MAX(STATS_FASTQ_SIZE, w_bin_file_reader->GetPredictedSize() / 100));
 
@@ -794,14 +872,14 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	
 	for (int i = 0; i < Params.n_splitters; ++i)
 	{
-		w_stats_splitters[i] = new CWStatsSplitter<false>(Params, Queues);
+		w_stats_splitters[i] = new CWStatsSplitter(Params, Queues);
 		gr0_2.push_back(thread(std::ref(*w_stats_splitters[i])));
 	}
 
 	w_stats_fastqs.resize(Params.n_readers);
 	for (int i = 0; i < Params.n_readers; ++i)
 	{
-		w_stats_fastqs[i] = new CWStatsFastqReader(Params, Queues, Queues.binary_pack_queues[i]);
+		w_stats_fastqs[i] = new CWStatsFastqReader(Params, Queues,  Params.file_type == bam ? nullptr : Queues.binary_pack_queues[i]);
 		gr0_1.push_back(thread(std::ref(*w_stats_fastqs[i])));
 	}	
 	thread bin_file_reader_th(std::ref(*w_bin_file_reader));
@@ -814,9 +892,12 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 
 	bin_file_reader_th.join();
 	delete w_bin_file_reader;
+
 	for (auto& ptr : Queues.binary_pack_queues)
 		delete ptr;
 
+	if (Params.file_type == bam)
+		delete Queues.bam_task_manager;
 
 	uint32 *stats;
 	Queues.pmm_stats->reserve(stats);
@@ -833,7 +914,7 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	}		
 
 	delete Queues.stats_part_queue;
-	Queues.stats_part_queue = NULL;
+	Queues.stats_part_queue = nullptr;
 	delete Queues.input_files_queue;
 	Queues.input_files_queue = new CInputFilesQueue(Params.input_file_names);
 
@@ -841,24 +922,24 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	Queues.s_mapper->Init(stats);
 	heuristic_time.stopTimer();
 
-	cout << "\n";
-	
+	cerr << "\n";	
 	w0.stopTimer();
 
 
 	Queues.pmm_stats->free(stats);
 	Queues.pmm_stats->release();
 	delete Queues.pmm_stats;
-	Queues.pmm_stats = NULL;
+	Queues.pmm_stats = nullptr;
 
 	// ***** Stage 1 *****
 	ShowSettingsStage1();
+	Queues.missingEOL_at_EOF_counter->Reset();
 
 	w_splitters.resize(Params.n_splitters);
 
 	for(int i = 0; i < Params.n_splitters; ++i)
 	{
-		w_splitters[i] = new CWSplitter<QUAKE_MODE>(Params, Queues);
+		w_splitters[i] = new CWSplitter(Params, Queues);
 		gr1_2.push_back(thread(std::ref(*w_splitters[i])));
 	}
 	
@@ -866,12 +947,24 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	gr1_3.push_back(thread(std::ref(*w_storer)));
 
 	w_fastqs.resize(Params.n_readers);
-	Queues.binary_pack_queues.resize(Params.n_readers);
-	for(int i = 0; i < Params.n_readers; ++i)
+	if (Params.file_type != bam)
 	{
-		Queues.binary_pack_queues[i] = new CBinaryPackQueue;
-		w_fastqs[i] = new CWFastqReader(Params, Queues, Queues.binary_pack_queues[i]);
-		gr1_1.push_back(thread(std::ref(*w_fastqs[i])));
+		Queues.binary_pack_queues.resize(Params.n_readers);
+		for (int i = 0; i < Params.n_readers; ++i)
+		{
+			Queues.binary_pack_queues[i] = new CBinaryPackQueue;
+			w_fastqs[i] = new CWFastqReader(Params, Queues, Queues.binary_pack_queues[i]);
+			gr1_1.push_back(thread(std::ref(*w_fastqs[i])));
+		}
+	}
+	else //bam
+	{
+		Queues.bam_task_manager = new CBamTaskManager;
+		for (int i = 0; i < Params.n_readers; ++i)
+		{			
+			w_fastqs[i] = new CWFastqReader(Params, Queues, nullptr);
+			gr1_1.push_back(thread(std::ref(*w_fastqs[i])));
+		}
 	}
 
 	w_bin_file_reader = new CWBinaryFilesReader(Params, Queues);
@@ -887,6 +980,9 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 
 	for (auto& ptr : Queues.binary_pack_queues)
 		delete ptr;
+
+	if (Params.file_type == bam)
+		delete Queues.bam_task_manager;
 
 	Queues.pmm_fastq->release();
 	Queues.pmm_reads->release();
@@ -921,8 +1017,6 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	});
 
 	
-
-
 	release_thr_st1_1->join();
 	release_thr_st1_2->join();
 
@@ -933,6 +1027,8 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	w1.stopTimer();
 	w2.startTimer();
 	
+	CheckAndReportMissingEOLs();
+	delete Queues.missingEOL_at_EOF_counter;
 
 	// ***** End of Stage 1 *****
 
@@ -968,14 +1064,14 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	{
 		Queues.bd->read(bin_id, file, name, size, n_rec, n_plus_x_recs, n_super_kmers);
 		if (Params.max_x)
-			bin_sizes.push_back(n_plus_x_recs * 2 * sizeof(KMER_T));			// estimation of RAM for sorting bins
+			bin_sizes.push_back(n_plus_x_recs * 2 * sizeof(CKmer<SIZE>));			// estimation of RAM for sorting bins
 		else
-			bin_sizes.push_back(n_rec * 2 * sizeof(KMER_T));
+			bin_sizes.push_back(n_rec * 2 * sizeof(CKmer<SIZE>));
 	}
 	
 	sort(bin_sizes.begin(), bin_sizes.end(), greater<int64>());
 	
-	SetThreads2Stage(bin_sizes);
+	SetThreads2Stage();
 	AdjustMemoryLimitsStage2();
 
 	if (Params.use_strict_mem)
@@ -986,14 +1082,14 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	}
 	else
 	{
-		Queues.tlbq = NULL;
-		Queues.bbkpq = NULL;
+		Queues.tlbq = nullptr;
+		Queues.bbkpq = nullptr;
 	}
 	
 	
 	int64 stage2_size = 0;
-	for (int i = 0; i < 4 * Params.n_sorters; ++i)
-		stage2_size += bin_sizes[i];
+	for (auto bin_size : bin_sizes)
+		stage2_size += bin_size;
 	stage2_size = MAX(stage2_size, 16 << 20);
 	Params.max_mem_stage2 = MIN(Params.max_mem_stage2, stage2_size);
 
@@ -1003,44 +1099,44 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	Queues.bd->reset_reading();
 	Queues.pmm_radix_buf = new CMemoryPool(Params.mem_tot_pmm_radix_buf, Params.mem_part_pmm_radix_buf );		
 	Queues.memory_bins    = new CMemoryBins(Params.max_mem_stage2, Params.n_bins, Params.use_strict_mem, Params.n_threads);
-	if (Params.use_quake)
-		Queues.pmm_prob = new CMemoryPool(Params.mem_tot_pmm_prob, Params.mem_part_pmm_prob);
-	else
-		Queues.pmm_prob = NULL;
-
-	auto sorted_bins = Queues.bd->get_sorted_req_sizes(Params.max_x, sizeof(KMER_T), Params.cutoff_min, Params.cutoff_max, Params.counter_max, Params.lut_prefix_len);
+	
+	auto sorted_bins = Queues.bd->get_sorted_req_sizes(Params.max_x, sizeof(CKmer<SIZE>), Params.cutoff_min, Params.cutoff_max, Params.counter_max, Params.lut_prefix_len);
 	Queues.bd->init_sort(sorted_bins);
 
 #ifdef DEVELOP_MODE
 	if(Params.verbose_log)
-		save_bins_stats(Queues, Params, sizeof(KMER_T), KMER_T::QUALITY_SIZE, n_reads, Params.signature_len, Queues.s_mapper->GetMapSize(), Queues.s_mapper->GetMap());
+		save_bins_stats(Queues, Params, sizeof(CKmer<SIZE>), n_reads, Params.signature_len, Queues.s_mapper->GetMapSize(), Queues.s_mapper->GetMap());
 #endif
 
-	SortFunction<KMER_T> sort_func;	
+	SortFunction<CKmer<SIZE>> sort_func;	
 #ifdef __APPLE__
-	sort_func = RadixSort::RadixSortMSD<KMER_T, SIZE>;
+	sort_func = RadixSort::RadixSortMSD<CKmer<SIZE>, SIZE>;
 	CSmallSort<SIZE>::Adjust(384);
-#else
-	int iset = instrset_detect();
+#else	
 	auto proc_name = CCpuInfo::GetBrand();
 	bool is_intel = CCpuInfo::GetVendor() == "GenuineIntel";
-	bool at_least_avx = iset >= 7;
+	bool at_least_avx = CCpuInfo::AVX_Enabled();
 	std::transform(proc_name.begin(), proc_name.end(), proc_name.begin(), ::tolower);
 	bool is_xeon = proc_name.find("xeon") != string::npos;
 	if (is_xeon || (is_intel && at_least_avx))
-	{
-		if (iset >= 8)
-			sort_func = RadulsSort::RadixSortMSD_AVX2<KMER_T>;
-		else if (iset >= 7)
-			sort_func = RadulsSort::RadixSortMSD_AVX<KMER_T>;
-		else if (iset >= 5)
-			sort_func = RadulsSort::RadixSortMSD_SSE41<KMER_T>;
-		else if (iset >= 2)
-			sort_func = RadulsSort::RadixSortMSD_SSE2<KMER_T>;
+	{		
+		if(CCpuInfo::AVX2_Enabled())
+			sort_func = RadulsSort::RadixSortMSD_AVX2<CKmer<SIZE>>;	
+		else if(CCpuInfo::AVX_Enabled())
+			sort_func = RadulsSort::RadixSortMSD_AVX<CKmer<SIZE>>;		
+		else if(CCpuInfo::SSE41_Enabled())
+			sort_func = RadulsSort::RadixSortMSD_SSE41<CKmer<SIZE>>;		
+		else if(CCpuInfo::SSE2_Enabled())
+			sort_func = RadulsSort::RadixSortMSD_SSE2<CKmer<SIZE>>;
+		else
+		{
+			//probably never because x64 always supports sse2 as far as I know
+			std::cerr << "Error: At least SSE2 must be supported\n";
+		}
 	}
 	else
 	{
-		sort_func = RadixSort::RadixSortMSD<KMER_T, SIZE>;
+		sort_func = RadixSort::RadixSortMSD<CKmer<SIZE>, SIZE>;
 		CSmallSort<SIZE>::Adjust(384);
 	}
 #endif
@@ -1063,21 +1159,13 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 		
 		for (uint32 i = 0; i < _2nd_stage_threads; ++i)
 		{
-			w_sorters[i] = new CWKmerBinSorter<KMER_T, SIZE>(Params, Queues, sort_func);
+			w_sorters[i] = new CWKmerBinSorter<SIZE>(Params, Queues, sort_func);
 			gr2_2.push_back(thread(std::ref(*w_sorters[i])));
 		}
 	}
 
-	w_reader = new CWKmerBinReader<KMER_T, SIZE>(Params, Queues);
+	w_reader = new CWKmerBinReader<SIZE>(Params, Queues);
 	gr2_1.push_back(thread(std::ref(*w_reader)));
-
-	//w_sorters.resize(Params.n_sorters);
-	//
-	//for(int i = 0; i < Params.n_sorters; ++i)
-	//{
-	//	w_sorters[i] = new CWKmerBinSorter<KMER_T, SIZE>(Params, Queues, i);
-	//	gr2_2.push_back(thread(std::ref(*w_sorters[i])));
-	//}
 
 	w_completer = new CWKmerBinCompleter(Params, Queues);
 	gr2_3.push_back(thread(std::ref(*w_completer), true));
@@ -1104,7 +1192,7 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	});
 
 	//process big bins if necessary (only in strict memory limit mode)
-	thread* release_thr_sm = NULL;
+	thread* release_thr_sm = nullptr;
 
 	if (Params.use_strict_mem)
 	{
@@ -1113,7 +1201,7 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 		release_thr_st2_1->join(); //need to be sure that memory_bins is released		
 		AdjustMemoryLimitsStrictMemoryMode();
 
-		cout << "\n";
+		cerr << "\n";
 
 		Queues.sm_pmm_input_file = new CMemoryPool(Params.sm_mem_tot_input_file, Params.sm_mem_part_input_file);
 		Queues.sm_pmm_expand = new CMemoryPool(Params.sm_mem_tot_expand, Params.sm_mem_part_expand);
@@ -1135,25 +1223,25 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 		CWBigKmerBinReader* w_bkb_reader = new CWBigKmerBinReader(Params, Queues);
 		thread bkb_reader(std::ref(*w_bkb_reader));
 
-		vector<CWBigKmerBinUncompactor<KMER_T, SIZE>*> w_bkb_uncompactors(Params.sm_n_uncompactors);
+		vector<CWBigKmerBinUncompactor<SIZE>*> w_bkb_uncompactors(Params.sm_n_uncompactors);
 		vector<thread> bkb_uncompactors;
 		for (int32 i = 0; i < Params.sm_n_uncompactors; ++i)
 		{
-			w_bkb_uncompactors[i] = new CWBigKmerBinUncompactor<KMER_T, SIZE>(Params, Queues);
+			w_bkb_uncompactors[i] = new CWBigKmerBinUncompactor<SIZE>(Params, Queues);
 			bkb_uncompactors.push_back(thread(std::ref(*w_bkb_uncompactors[i])));
 		}
 
-		CWBigKmerBinSorter<KMER_T, SIZE>* w_bkb_sorter = new CWBigKmerBinSorter<KMER_T, SIZE>(Params, Queues, sort_func);
+		CWBigKmerBinSorter<SIZE>* w_bkb_sorter = new CWBigKmerBinSorter<SIZE>(Params, Queues, sort_func);
 		thread bkb_sorter(std::ref(*w_bkb_sorter));
 		
 		CWBigKmerBinWriter* w_bkb_writer = new CWBigKmerBinWriter(Params, Queues);
 		thread bkb_writer(std::ref(*w_bkb_writer));
 		
-		vector<CWBigKmerBinMerger<KMER_T, SIZE>*> w_bkb_mergers(Params.sm_n_mergers);
+		vector<CWBigKmerBinMerger<SIZE>*> w_bkb_mergers(Params.sm_n_mergers);
 		vector<thread> bkb_mergers;
 		for (int32 i = 0; i < Params.sm_n_mergers; ++i)
 		{
-			w_bkb_mergers[i] = new CWBigKmerBinMerger<KMER_T, SIZE>(Params, Queues);
+			w_bkb_mergers[i] = new CWBigKmerBinMerger<SIZE>(Params, Queues);
 			bkb_mergers.push_back(thread(std::ref(*w_bkb_mergers[i])));
 		}
 
@@ -1258,6 +1346,7 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 	while((bin_id = Queues.bd->get_next_bin()) >= 0)
 	{
 		Queues.bd->read(bin_id, file, name, size, n_rec, n_plus_x_recs, n_super_kmers);		
+		delete file;
 		tmp_size += size;
 		n_total_super_kmers += n_super_kmers;
 	}
@@ -1281,7 +1370,7 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 		uint64 n_kmers = 0;
 		uint64 file_size = 0;
 		uint32 size = 0;
-		FILE* file = NULL;		
+		FILE* file = nullptr;
 		while (Queues.bbd->next_bin(bin_id, size))
 		{			
 			while (Queues.bbd->next_sub_bin(bin_id, sub_bin_id, lut_prefix_len, n_kmers, file, name, file_size))
@@ -1310,8 +1399,8 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> bool CKMC<KMER_T, SIZ
 
 //----------------------------------------------------------------------------------
 // Return statistics
-template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZE, QUAKE_MODE>::GetStats(double &time1,
-	double &time2, double &time3, uint64 &_n_unique, uint64 &_n_cutoff_min, uint64 &_n_cutoff_max, uint64 &_n_total, uint64 &_n_reads, uint64 &_tmp_size, uint64 &_tmp_size_strict_mem, uint64 &_max_disk_usage, uint64& _n_total_super_kmers)
+template <unsigned SIZE> void CKMC<SIZE>::GetStats(double &time1,
+	double &time2, double &time3, uint64 &_n_unique, uint64 &_n_cutoff_min, uint64 &_n_cutoff_max, uint64 &_n_total, uint64 &_n_reads, uint64 &_tmp_size, uint64 &_tmp_size_strict_mem, uint64 &_max_disk_usage, uint64& _n_total_super_kmers, bool& _was_small_k_opt)
 {
 	time1 = w1.getElapsedTime();
 	time2 = w2.getElapsedTime();
@@ -1325,6 +1414,66 @@ template <typename KMER_T, unsigned SIZE, bool QUAKE_MODE> void CKMC<KMER_T, SIZ
 	_tmp_size_strict_mem = tmp_size_strict_mem;
 	_max_disk_usage = max_disk_usage;
 	_n_total_super_kmers = n_total_super_kmers;
+	_was_small_k_opt = was_small_k_opt;
+}
+
+template <unsigned SIZE> void CKMC<SIZE>::SaveStatsInJSON(bool was_small_k_opt)
+{	
+	if (Params.json_summary_file_name == "")
+		return;
+
+	ofstream stats(Params.json_summary_file_name);
+
+	if (!stats)
+	{
+		cerr << "Warning: Cannot open file " << Params.json_summary_file_name << " to store summary of execution in JSON format\n";
+		return;
+	}
+
+	double time1 = w1.getElapsedTime();
+	double time2 = w2.getElapsedTime();
+	double time3 = w3.getElapsedTime();
+
+	bool display_strict_mem_stats = Params.p_strict_mem && !was_small_k_opt;
+
+	stats << "{\n"
+		<< "\t\"1st_stage\": \"" << time1 << "s\",\n"
+		<< "\t\"2nd_stage\": \"" << time2 << "s\",\n";
+	if (display_strict_mem_stats)
+	{
+		stats << "\t\"3rd_stage\": \"" << time3 << "s\",\n";
+		stats << "\t\"Total\": \"" << (time1 + time2 + time3) << "s\",\n";
+	}
+	
+	else
+		stats << "\t\"Total\": \"" << (time1 + time2) << "s\",\n";
+
+
+	if (display_strict_mem_stats)
+	{
+		stats << "\t\"Tmp_size\": \"" << tmp_size / 1000000 << "MB\",\n"
+			<< "\t\"Tmp_size_strict_memory\": \"" << tmp_size_strict_mem / 1000000 << "MB\",\n"
+			<< "\t\"Tmp_total\": \"" << max_disk_usage / 1000000 << "MB\",\n";
+	}
+	else
+		stats << "\t\"Tmp_size\": \"" << tmp_size / 1000000 << "MB\",\n";
+
+	stats << "\t\"Stats\": {\n";
+	
+	stats	<< "\t\t\"#k-mers_below_min_threshold\": " << n_cutoff_min << ",\n"
+			<< "\t\t\"#k-mers_above_max_threshold\": " << n_cutoff_max << ",\n"
+			<< "\t\t\"#Unique_k-mers\": " << n_unique << ",\n"
+			<< "\t\t\"#Unique_counted_k-mers\": " << n_unique - n_cutoff_min - n_cutoff_max << ",\n"
+			<< "\t\t\"#Total no. of k-mers\": " << n_total << ",\n";
+	if (Params.p_file_type != multiline_fasta)
+		stats << "\t\t\"#Total_reads\": " << n_reads << ",\n";
+	else
+		stats << "\t\t\"#Total_sequences\": "<< n_reads << ",\n";
+	stats << "\t\t\"#Total_super-k-mers\": " << n_total_super_kmers << "\n";
+
+	stats << "\t}\n";
+	stats << "}\n";
+	stats.close();
 }
 
 #endif

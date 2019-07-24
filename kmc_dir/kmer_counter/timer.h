@@ -5,8 +5,8 @@ The homepage of the KMC project is http://sun.aei.polsl.pl/kmc
 The source codes are based on codes written by Dennis and published:
 http://allmybrain.com/2008/06/10/timing-cc-code-on-linux/
 
-Version: 3.0.0
-Date   : 2017-01-28
+Version: 3.1.1
+Date   : 2019-05-19
 */
 
 #ifndef _TIMER_H
@@ -56,7 +56,6 @@ public:
 #else
 #include <sys/time.h>
 #include <sys/resource.h>
-
 typedef struct {
 	timeval start;
 	timeval stop;
@@ -67,7 +66,7 @@ class CStopWatch {
 private:
 	stopWatch timer;
 public:
-	CStopWatch() {};
+	CStopWatch();
 	void startTimer();
 	void stopTimer();
 	double getElapsedTime();

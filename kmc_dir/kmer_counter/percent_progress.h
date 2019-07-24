@@ -5,7 +5,7 @@ The homepage of the KMC project is http://sun.aei.polsl.pl/kmc
 Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
 
 Version: 3.0.0
-Date   : 2017-01-28
+Date   : 2019-05-19
 */
 
 #ifndef _PERCENT_PROGRESS_H
@@ -41,7 +41,7 @@ public:
 		curr_val += val;
 		int32 new_percent = 0;
 		if (max_val)
-			new_percent = (curr_val * 100) / max_val;
+			new_percent = static_cast<int32>((curr_val * 100) / max_val);
 		else
 			new_percent = 100;
 		if (new_percent > curr_percent)
@@ -49,8 +49,8 @@ public:
 			curr_percent = new_percent;
 			if (show_progress)
 			{
-				std::cout << "\r" << label << curr_percent << "%";
-				std::cout.flush();
+				std::cerr << "\r" << label << curr_percent << "%";
+				std::cerr.flush();
 			}
 		}
 	}
@@ -58,3 +58,5 @@ public:
 
 
 #endif
+
+// ***** EOF

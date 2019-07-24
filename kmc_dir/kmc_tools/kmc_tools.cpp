@@ -4,8 +4,8 @@
   
   Authors: Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #include "stdafx.h"
@@ -54,6 +54,7 @@ template<unsigned SIZE> class CTools
 			case CTransformOutputDesc::OpType::COMPACT:
 			case CTransformOutputDesc::OpType::REDUCE:
 			case CTransformOutputDesc::OpType::SORT:
+			case CTransformOutputDesc::OpType::SET_COUNTS:
 				kmc_db_writers.push_back(new CKMC1DbWriter<SIZE>(nullptr, desc));
 				kmc_db_writers.back()->MultiOptputInit();
 				bundles.push_back(new CBundle<SIZE>(nullptr));
@@ -135,63 +136,21 @@ template<unsigned SIZE> class CTools
 		delete db;
 	}
 
-	bool histo()
-	{
-		if (!config.headers.front().IsKMC2()) //KMC1
-		{
-			CKMC1DbReader<SIZE> kmcdb(config.headers.front(), config.input_desc.front(), CConfig::GetInstance().percent_progress, KMCDBOpenMode::counters_only);
-			CHistogramWriter<CKMC1DbReader<SIZE>> writer(kmcdb);
-			return writer.Process();
-		}
-		else //KMC2
-		{
-			CKMC2DbReader<SIZE> kmcdb(config.headers.front(), config.input_desc.front(), CConfig::GetInstance().percent_progress, KMCDBOpenMode::counters_only);
-			CHistogramWriter<CKMC2DbReader<SIZE>> writer(kmcdb); 
-			return writer.Process();
-		}
-	}
-
-	bool dump()
-	{
-		if (!config.headers.front().IsKMC2()) //KMC1 - input is sorted
-		{			
-			CKMCDBForDump<CKMC1DbReader<SIZE>, SIZE, true> kmcdb_wrapper;
-			CDumpWriter<decltype(kmcdb_wrapper), SIZE> writer(kmcdb_wrapper);
-			return writer.Process();
-		}
-		else //KMC2
-		{
-			if (config.dump_params.sorted_output)
-			{			
-				CKMCDBForDump<CKMC2DbReader<SIZE>, SIZE, true> kmcdb_wrapper;
-				CDumpWriter<decltype(kmcdb_wrapper), SIZE> writer(kmcdb_wrapper);
-				return writer.Process();
-			}
-			else
-			{				
-				CKMCDBForDump<CKMC2DbReader<SIZE>, SIZE, false> kmcdb_wrapper;
-				CDumpWriter<decltype(kmcdb_wrapper), SIZE> writer(kmcdb_wrapper); 
-				return writer.Process();
-			}		
-		}
-		return true;
-	}
-	
 	bool info()
 	{
 		auto header = CConfig::GetInstance().headers.front();
 
-		std::cout << "k                 :  " << header.kmer_len <<"\n";
-		std::cout << "total k-mers      :  " << header.total_kmers<< "\n";
-		std::cout << "cutoff max        :  " << header.max_count << "\n";
-		std::cout << "cutoff min        :  " << header.min_count << "\n";
-		std::cout << "counter size      :  " << header.counter_size << " bytes\n";
-		std::cout << "mode              :  " << (header.mode ? "quality-aware counters" : "occurrence counters") << "\n";
-		std::cout << "both strands      :  " << (header.both_strands ? "yes" : "no") << "\n";
-		std::cout << "database format   :  " << (header.IsKMC2() ? "KMC2.x" : "KMC1.x") << "\n";
-		std::cout << "signature length  :  " << header.signature_len << "\n";
-		std::cout << "number of bins    :  " << header.no_of_bins << "\n";
-		std::cout << "lut_prefix_len    :  " << header.lut_prefix_len << "\n";
+		std::cout << "k                 :  " << header.kmer_len <<"\n"
+				  << "total k-mers      :  " << header.total_kmers<< "\n"
+				  << "cutoff max        :  " << header.max_count << "\n"
+				  << "cutoff min        :  " << header.min_count << "\n"
+				  << "counter size      :  " << header.counter_size << " bytes\n"
+				  << "mode              :  " << (header.mode ? "quality-aware counters" : "occurrence counters") << "\n"
+				  << "both strands      :  " << (header.both_strands ? "yes" : "no") << "\n"
+				  << "database format   :  " << (header.IsKMC2() ? "KMC2.x" : "KMC1.x") << "\n"
+				  << "signature length  :  " << header.signature_len << "\n"
+				  << "number of bins    :  " << header.no_of_bins << "\n"
+				  << "lut_prefix_len    :  " << header.lut_prefix_len << "\n";
 		return true;
 	}
 
@@ -217,7 +176,7 @@ template<unsigned SIZE> class CTools
 			FILE* tmp = my_fopen(p.c_str(), "rb");
 			if (!tmp)
 			{
-				cout << "Cannot open file: " << p.c_str();
+				cerr << "Error: cannot open file: " << p.c_str();
 				exit(1);
 			}
 			my_fseek(tmp, 0, SEEK_END);
@@ -268,7 +227,7 @@ template<unsigned SIZE> class CTools
 		CKMCFile kmc_api;
 		if (!kmc_api.OpenForRA(config.input_desc.front().file_src))
 		{
-			cout << "Error: cannot open: " << config.input_desc.front().file_src << " by KMC API\n";
+			cerr << "Error: cannot open: " << config.input_desc.front().file_src << " by KMC API\n";
 			exit(1);
 		}
 		kmc_api.SetMinCount(config.input_desc.front().cutoff_min);
@@ -374,7 +333,7 @@ template<unsigned SIZE> class CTools
 				if (it->op_type == CTransformOutputDesc::OpType::SORT)
 				{
 					it = config.transform_output_desc.erase(it);
-					cout << "Warning: input database is already sorted. Each sort operation will be omitted\n";
+					cerr << "Warning: input database is already sorted. Each sort operation will be omitted\n";
 				}
 				else ++it;
 			}
@@ -387,7 +346,7 @@ template<unsigned SIZE> class CTools
 
 		for (auto& desc : config.transform_output_desc)
 		{
-			if (desc.op_type == CTransformOutputDesc::OpType::REDUCE || desc.op_type == CTransformOutputDesc::OpType::COMPACT || desc.op_type == CTransformOutputDesc::OpType::SORT)
+			if (desc.op_type == CTransformOutputDesc::OpType::REDUCE || desc.op_type == CTransformOutputDesc::OpType::COMPACT || desc.op_type == CTransformOutputDesc::OpType::SORT || desc.op_type == CTransformOutputDesc::OpType::SET_COUNTS)
 			{
 				kmers_needed = true;
 				sort_needed = true;
@@ -435,14 +394,6 @@ public:
 		{
 			return info();
 		}
-		else if (config.mode == CConfig::Mode::HISTOGRAM)
-		{
-			return histo();
-		}
-		else if (config.mode == CConfig::Mode::DUMP)
-		{
-			return dump();
-		}
 		else if (config.mode == CConfig::Mode::COMPARE)
 		{
 			CInput<SIZE> *db1, *db2;
@@ -463,7 +414,7 @@ public:
 
 			delete db1;
 			delete db2; 
-			std::cout << "\n";
+			//std::cout << "\n";
 			if (res)
 			{
 				cout << "DB Equals\n";
@@ -478,7 +429,6 @@ public:
 		else if (config.mode == CConfig::Mode::TRANSFORM)
 		{
 			return transform();
-
 		}
 		else if (config.mode == CConfig::Mode::SIMPLE_SET)
 		{
@@ -488,7 +438,7 @@ public:
 		{
 			return check();
 		}
-		else
+		else if(config.mode == CConfig::Mode::COMPLEX)
 		{
 			CExpressionNode<SIZE>* expression_root = parameters_parser.GetExpressionRoot<SIZE>();
 			auto t = expression_root->GetExecutionRoot();
@@ -498,11 +448,14 @@ public:
 			delete t;
 			return true;
 		}
+		else
+		{
+			//being here means bug
+			std::cerr << "Error: unknown mode\n";
+			exit(1);
+		}
 		return false;
 	}
-
-	
-
 };
 
 
@@ -577,6 +530,19 @@ public:
 	}
 };
 
+//----------------------------------------------------------------------------------
+// Check if --help or --version was used
+bool help_or_version(int argc, char** argv)
+{
+	const string version = "--version";
+	const string help = "--help";
+	for (int i = 1; i < argc; ++i)
+	{
+		if (argv[i] == version || argv[i] == help)
+			return true;
+	}
+	return false;
+}
 
 int main(int argc, char**argv)
 {
@@ -585,6 +551,12 @@ int main(int argc, char**argv)
 	timer.start();
 #endif 
 
+	if (argc == 1 || help_or_version(argc, argv))
+	{
+		CGeneralUsageDisplayer{}.Display();
+		return 0;
+	}
+
 	CParametersParser params_parser(argc, argv);
 	params_parser.Parse();
 	if (params_parser.validate_input_dbs())
@@ -592,7 +564,7 @@ int main(int argc, char**argv)
 		params_parser.SetThreads();
 		CApplication<KMER_WORDS> app(params_parser);
 		app.Process();
-		cout << "\n";
+		//cout << "\n";
 	}
 
 #ifdef ENABLE_LOGGER 

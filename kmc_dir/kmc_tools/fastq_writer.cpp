@@ -4,8 +4,8 @@
   
   Authors: Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #include "stdafx.h"
@@ -34,14 +34,14 @@ void CFastqWriter::Process()
 	FILE* f = fopen(output_src.c_str(), "wb");
 	if (!f)
 	{
-		cout << "cannot open file :" << output_src;
+		cerr << "cannot open file :" << output_src;
 		exit(1);
 	}
 	while (filtered_part_queue->pop(part, size))
 	{
 		if (fwrite(part, 1, size, f) != size)
 		{
-			cout << "Error while writing to " << output_src << "\n";
+			cerr << "Error while writing to " << output_src << "\n";
 			exit(1);
 		}
 		pmm_fastq_filter->free(part);

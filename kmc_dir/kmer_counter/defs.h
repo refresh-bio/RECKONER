@@ -4,15 +4,15 @@
   
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #ifndef _DEFS_H
 #define _DEFS_H
 
-#define KMC_VER		"3.0.0"
-#define KMC_DATE	"2017-01-28"
+#define KMC_VER		"3.1.1"
+#define KMC_DATE	"2019-05-19"
 
 #define _CRT_SECURE_NO_WARNINGS
 
@@ -23,9 +23,6 @@
 #define uchar	unsigned char
 
 #include <time.h>
-
-//uncomment below line to disable asmlib
-//#define DISABLE_ASMLIB
 
 //#define DEBUG_MODE
 //#define DEVELOP_MODE 
@@ -42,7 +39,6 @@
 
 #define MIN_N_BINS 64
 #define MAX_N_BINS 2000
-
 
 #ifndef MAX_K
 #define MAX_K		256
@@ -86,12 +82,6 @@ typedef float	count_t;
 
 #define KMER_WORDS		((MAX_K + 31) / 32)
 
-#ifdef _DEBUG
-#define A_memcpy	memcpy
-#define A_memset	memset
-#endif
-
-
 
 #ifdef WIN32
 #define my_fopen	fopen
@@ -122,7 +112,6 @@ typedef unsigned long long uint64;
 #include <stdio.h>
 #include <ext/algorithm>
 #include <iostream>
-using namespace std;
 using __gnu_cxx::copy_n;
 
 #endif

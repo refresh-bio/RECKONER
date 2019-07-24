@@ -5,8 +5,8 @@
   
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 #include <algorithm>
 #include <numeric>
@@ -37,8 +37,8 @@ CKmerBinStorer::CKmerBinStorer(CKMCParams &Params, CKMCQueues &Queues)
 
 	s_mapper			= Queues.s_mapper;
 	disk_logger			= Queues.disk_logger;
-	files                  = NULL;
-	buf_sizes		       = NULL;
+	files                  = nullptr;
+	buf_sizes		       = nullptr;
 	buffer_size_bytes      = 0;
 	max_buf_size		   = 0;
 	max_buf_size_id		   = 0;
@@ -49,7 +49,7 @@ CKmerBinStorer::CKmerBinStorer(CKMCParams &Params, CKMCQueues &Queues)
 	
 	buffer = new elem_t*[n_bins];
 	for(int i = 0; i < n_bins; ++i)
-		buffer[i] = NULL;
+		buffer[i] = nullptr;
 
 
 	total_size = 0 ; 
@@ -74,17 +74,17 @@ void CKmerBinStorer::Release()
 			delete buffer[i];
 
 	delete[] buffer;
-	buffer = NULL;	
+	buffer = nullptr;
 
 	delete[] files;
-	files = NULL;
+	files = nullptr;
 
 	delete[] buf_sizes;
-	buf_sizes = NULL;
+	buf_sizes = nullptr;
 	
 	delete [] tmp_buff;
 
-	cout << "\n";
+	cerr << "\n";
 }
 
 //----------------------------------------------------------------------------------
@@ -99,7 +99,7 @@ void CKmerBinStorer::ReleaseBuffer()
 		if(buffer[i])
 		{
 			delete buffer[i];
-			buffer[i] = NULL;
+			buffer[i] = nullptr;
 		}
 }
 
@@ -156,7 +156,7 @@ void CKmerBinStorer::PutBinToTmpFile(uint32 n)
 		{
 			buf = get<0>(*p);
 			size = get<1>(*p);
-			A_memcpy(tmp_buff + tmp_buff_pos, buf, size);
+			memcpy(tmp_buff + tmp_buff_pos, buf, size);
 			tmp_buff_pos += size;
 			pmm_bins->free(buf);
 		}
@@ -165,7 +165,7 @@ void CKmerBinStorer::PutBinToTmpFile(uint32 n)
 		w = files[n]->Write(tmp_buff, 1, tmp_buff_pos);
 		if(w != tmp_buff_pos)
 		{
-			cout<<"Error while writing to temporary file " << n;
+			cerr << "Error while writing to temporary file " << n;
 			exit(1);
 		}		
 		total_size += w;		

@@ -4,8 +4,8 @@
   
   Authors: Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #include "stdafx.h"
@@ -18,7 +18,7 @@ uint32 CParametersParser::replace_zero(uint32 val, const char* param_name, uint3
 {
 	if (val == 0)
 	{
-		cout << "Warning: min value for " << param_name << " is " << value_to_set_if_zero << ". Your value will be converted to " << value_to_set_if_zero << "\n";
+		cerr << "Warning: min value for " << param_name << " is " << value_to_set_if_zero << ". Your value will be converted to " << value_to_set_if_zero << "\n";
 		return value_to_set_if_zero;
 	}
 	return val;
@@ -32,12 +32,12 @@ void CParametersParser::parse_int_or_float(bool& force_float, bool& force_int, f
 		float_value = (float)atof(argv[pos++] + 3);
 		if (float_value > 1.0f || float_value < 0.0f)
 		{
-			cout << " Error: wrong value for fastq input parameter: "<< param_name <<"\n";
+			cerr << "Error: wrong value for fastq input parameter: "<< param_name <<"\n";
 			exit(1);
 		}
 		if (force_int)
 		{
-			cout << "Error: both -ci, -cx must be specified as real number [0;1] or as integer \n";
+			cerr << "Error: both -ci, -cx must be specified as real number [0;1] or as integer \n";
 			exit(1);
 		}
 		force_float = true;
@@ -48,7 +48,7 @@ void CParametersParser::parse_int_or_float(bool& force_float, bool& force_int, f
 		int_val = atoi(argv[pos++] + 3);
 		if (force_float)
 		{
-			cout << "Error: both -ci, -cx must be specified as real number [0;1] or as integer \n";
+			cerr << "Error: both -ci, -cx must be specified as real number [0;1] or as integer \n";
 			exit(1);
 		}
 		force_int = true;
@@ -68,21 +68,26 @@ void CParametersParser::parse_global_params()
 		{
 			if (strlen(argv[pos]) < 3)
 			{
-				std::cout << "Error: -t require value\n";
+				std::cerr << "Error: -t require value\n";
 				exit(1);
 			}
 			config.avaiable_threads = atoi(argv[pos] + 2);
 			continue;
 		}
-		if (argv[pos][1] == 'v')
+		else if (argv[pos][1] == 'v')
 		{
 			config.verbose = true;
 			continue;
 		}
-		if (strncmp(argv[pos], "-hp", 3) == 0)
+		else if (strncmp(argv[pos], "-hp", 3) == 0)
 		{
 			config.percent_progress.Hide();
 			continue;
+		}
+		else
+		{
+			std::cerr << "Error: unknown global option " << argv[pos] << "\n";
+			exit(1);
 		}
 	}
 }
@@ -91,12 +96,12 @@ void CParametersParser::read_input_fastq_desc()
 {
 	if (pos >= argc)
 	{
-		cout << "Error: Input fastq files(s) missed\n";
+		cerr << "Error: Input fastq files(s) missed\n";
 		exit(1);
 	}
 	if (strncmp(argv[pos], "-", 1) == 0)
 	{
-		cout << "Error: Input fastq file(s) required, but " << argv[pos] << " found\n";
+		cerr << "Error: Input fastq file(s) required, but " << argv[pos] << " found\n";
 		exit(1);
 	}
 	string input_file_name = argv[pos++];
@@ -107,7 +112,7 @@ void CParametersParser::read_input_fastq_desc()
 		ifstream in(input_file_name.c_str() + 1);
 		if (!in.good())
 		{
-			cout << "Error: No " << input_file_name.c_str() + 1 << " file\n";
+			cerr << "Error: No " << input_file_name.c_str() + 1 << " file\n";
 			exit(1);
 		}
 		string s;
@@ -145,7 +150,7 @@ void CParametersParser::read_input_fastq_desc()
 				config.filtering_params.input_file_type = CFilteringParams::file_type::fastq;
 				break;
 			default:
-				cout << "Error: unknow parameter " << argv[pos - 1] << "\n";
+				cerr << "Error: unknow parameter " << argv[pos - 1] << "\n";
 				exit(1);
 				break;
 			}
@@ -159,12 +164,12 @@ void CParametersParser::read_output_fastq_desc()
 {
 	if (pos >= argc)
 	{
-		cout << "Error: Output fastq source missed\n";
+		cerr << "Error: Output fastq source missed\n";
 		exit(1);
 	}
 	if (strncmp(argv[pos], "-", 1) == 0)
 	{
-		cout << "Error: Output fastq source required, but " << argv[pos] << "found\n";
+		cerr << "Error: Output fastq source required, but " << argv[pos] << "found\n";
 		exit(1);
 	}
 	config.filtering_params.output_src = argv[pos++];
@@ -182,19 +187,19 @@ void CParametersParser::read_output_fastq_desc()
 				config.filtering_params.output_file_type = CFilteringParams::file_type::fasta;
 				break;
 			default:
-				cout << "Error: unknown parameter " << argv[pos] << "\n";
+				cerr << "Error: unknown parameter " << argv[pos] << "\n";
 				exit(1);
 				break;
 			}
 			if (config.filtering_params.input_file_type == CFilteringParams::file_type::fasta && config.filtering_params.output_file_type == CFilteringParams::file_type::fastq)
 			{
-				cout << "Error: cannot set -fq for output when -fa is set for input\n";
+				cerr << "Error: cannot set -fq for output when -fa is set for input\n";
 				exit(1);
 			}
 		}
 		else
 		{
-			cout << "Error: Unknown parameter: " << argv[pos] << "\n";
+			cerr << "Error: Unknown parameter: " << argv[pos] << "\n";
 			exit(1);
 		}
 		++pos;
@@ -207,11 +212,15 @@ void CParametersParser::read_filter_params()
 	{
 		if (strncmp(argv[pos], "-t", 2) == 0)
 		{
-			config.filtering_params.trim = true;
+			config.filtering_params.filter_mode = CFilteringParams::FilterMode::trim;
+		}
+		else if (strncmp(argv[pos], "-hm", 3) == 0)
+		{
+			config.filtering_params.filter_mode = CFilteringParams::FilterMode::hard_mask;
 		}
 		else
 		{
-			cout << "Warning: Unknow parameter for filter operation: " << argv[pos] << "\n";
+			cerr << "Warning: Unknow parameter for filter operation: " << argv[pos] << "\n";
 		}
 		++pos;
 	}
@@ -221,84 +230,22 @@ void CParametersParser::read_check_params()
 {
 	if (pos >= argc)
 	{
-		std::cout << "Error: check operation require k-mer to check\n";
+		std::cerr << "Error: check operation require k-mer to check\n";
 		exit(1);
 	}
 	config.check_params.kmer = argv[pos++];
-}
-
-void CParametersParser::read_dump_params()
-{
-	while (pos < argc && argv[pos][0] == '-')
-	{
-		if (strncmp(argv[pos], "-s", 2) == 0)
-		{
-			config.dump_params.sorted_output = true;
-		}
-		else
-		{
-			cout << "Warning: Unknow parameter for dump operation: " << argv[pos] << "\n";			
-		}
-		++pos;
-	}
-
-}
-
-
-void CParametersParser::read_operation_type()
-{
-	if (strncmp(argv[pos], "-oc", 3) == 0)
-	{
-		char* mode = argv[pos] + 3;
-		if (strcmp(mode, "min") == 0)
-		{
-			config.counter_op_type = CounterOpType::MIN;
-		}
-		else if (strcmp(mode, "max") == 0)
-		{
-			config.counter_op_type = CounterOpType::MAX;
-		}
-		else if (strcmp(mode, "sum") == 0)
-		{
-			config.counter_op_type = CounterOpType::SUM;
-		}
-		else if (strcmp(mode, "diff") == 0)
-		{
-			config.counter_op_type = CounterOpType::DIFF;
-		}
-		else if (strcmp(mode, "left") == 0)
-		{
-			config.counter_op_type = CounterOpType::FROM_DB1;
-		}
-		else if (strcmp(mode, "right") == 0)
-		{
-			config.counter_op_type = CounterOpType::FROM_DB2;
-		}
-		else
-		{
-			cout << "Unknown counter calculation mode: " << mode << ". Allowed values: min, max, sum, diff, left, right\n";
-			exit(1);
-		}
-		++pos;
-
-		if (config.mode == CConfig::Mode::KMERS_SUBTRACT)
-		{
-			cout << "Error: counter calculation mode not allowed for kmers_subtract\n";
-			exit(1);
-		}
-	}
 }
 
 void CParametersParser::read_input_desc()
 {
 	if (pos >= argc)
 	{
-		cout << "Error: Input database source missed\n";
+		cerr << "Error: Input database source missed\n";
 		exit(1);
 	}
 	if (strncmp(argv[pos], "-", 1) == 0)
 	{
-		cout << "Error: Input database source required, but " << argv[pos] << "found\n";
+		cerr << "Error: Input database source required, but " << argv[pos] << "found\n";
 		exit(1);
 	}
 	CInputDesc desc(argv[pos++]);
@@ -317,7 +264,7 @@ void CParametersParser::read_input_desc()
 		}
 		else
 		{
-			cout << "Error: Unknow parameter: " << argv[pos];
+			cerr << "Error: Unknow parameter: " << argv[pos];
 			exit(1);
 		}
 	}
@@ -329,6 +276,7 @@ bool CParametersParser::read_output_for_transform()
 		return false;
 
 	CTransformOutputDesc::OpType op_type;
+	uint64 counter_value = 0; //for set_counts only
 	if (strcmp(argv[pos], "sort") == 0)
 	{
 		op_type = CTransformOutputDesc::OpType::SORT;	
@@ -349,9 +297,42 @@ bool CParametersParser::read_output_for_transform()
 	{
 		op_type = CTransformOutputDesc::OpType::DUMP;
 	}
+	else if (strcmp(argv[pos], "set_counts") == 0)
+	{
+		op_type = CTransformOutputDesc::OpType::SET_COUNTS;
+		++pos;
+		if (pos >= argc)
+		{
+			cerr << "Error: set_counts operation requires count value\n";
+			Usage();
+			exit(1);
+		}
+		
+		if (strncmp(argv[pos], "-", 1) == 0)
+		{
+			cerr << "Error: Count value expected, but " << argv[pos] << " found\n";
+			exit(1);
+		}
+
+		char* ptr_end = nullptr;
+		counter_value = strtoull(argv[pos], &ptr_end, 10);
+		auto len = strlen(argv[pos]);
+		if (argv[pos] + len != ptr_end)
+		{
+			cerr << "Error: Count value expected, but " << argv[pos] << " found\n";
+			exit(1);
+		}		
+
+		if (counter_value > numeric_limits<uint32>::max())
+		{
+			cerr << "Error: currenlty kmc_tools supports counter values up to " << numeric_limits<uint32>::max() << "\n";
+			exit(1);
+		}
+
+	}
 	else
 	{
-		cout << "Unknown operation: " << argv[pos] << "\n";
+		cerr << "Error: unknown operation: " << argv[pos] << "\n";
 		Usage();
 		exit(1);
 	}
@@ -373,14 +354,14 @@ bool CParametersParser::read_output_for_transform()
 			}
 			else
 			{
-				cout << "-s parameter allowed only for dump operation\n";
+				cerr << "Error: -s parameter allowed only for dump operation\n";
 				Usage();
 				exit(1);
 			}
 		}
 		else
 		{
-			cout << "Error: unknown operation parameter: " << argv[pos] <<"\n";
+			cerr << "Error: unknown operation parameter: " << argv[pos] <<"\n";
 			exit(1);
 		}
 		++pos;
@@ -388,18 +369,19 @@ bool CParametersParser::read_output_for_transform()
 
 	if (pos >= argc)
 	{
-		cout << "Error: Output database path missed\n";
+		cerr << "Error: Output database path missed\n";
 		exit(1);
 	}
 	if (strncmp(argv[pos], "-", 1) == 0)
 	{
-		cout << "Error: Output database path required, but " << argv[pos] << " found\n";
+		cerr << "Error: Output database path required, but " << argv[pos] << " found\n";
 		exit(1);
 	}
 
-	
-	
 	config.transform_output_desc.back().file_src = argv[pos++];
+
+	if (op_type == CTransformOutputDesc::OpType::SET_COUNTS)
+		config.transform_output_desc.back().counter_value = counter_value;
 
 	//read database params
 	while (pos < argc)
@@ -420,7 +402,7 @@ bool CParametersParser::read_output_for_transform()
 		}
 		else
 		{
-			cout << "Error: Unknown parameter: " << argv[pos];
+			cerr << "Error: Unknown parameter: " << argv[pos];
 			Usage();
 			exit(1);
 		}
@@ -428,9 +410,18 @@ bool CParametersParser::read_output_for_transform()
 	if (op_type == CTransformOutputDesc::OpType::COMPACT)
 	{
 		if (config.transform_output_desc.back().counter_max)
-			cout << "Warning: -cs can not be specified for compact operation, value specified will be ignored\n";
+			cerr << "Warning: -cs can not be specified for compact operation, value specified will be ignored\n";
 		config.transform_output_desc.back().counter_max = 1;
 	}	
+	if (op_type == CTransformOutputDesc::OpType::SET_COUNTS)
+	{
+		auto& tmp = config.transform_output_desc.back();
+		if (tmp.counter_max || tmp.cutoff_max || tmp.cutoff_min)
+			cerr << "Warning: -cs, -cx, -ci cannot be specified for set_counts operation, values will be ignored\n";
+		tmp.counter_max = tmp.cutoff_max = numeric_limits<uint32>::max();
+		tmp.cutoff_min = 1;
+	}
+
 	return true;
 }
 
@@ -467,7 +458,7 @@ bool CParametersParser::read_output_desc_for_simple()
 	}
 	else
 	{
-		cout << "Unknown operation: " << argv[pos] << "\n";
+		cerr << "Error: unknown operation: " << argv[pos] << "\n";
 		Usage();
 		exit(1);
 	}
@@ -475,12 +466,12 @@ bool CParametersParser::read_output_desc_for_simple()
 	++pos;
 	if (pos >= argc)
 	{
-		cout << "Error: Output database path missed\n";
+		cerr << "Error: Output database path missed\n";
 		exit(1);
 	}
 	if (strncmp(argv[pos], "-", 1) == 0)
 	{
-		cout << "Error: Output database path required, but " << argv[pos] << " found\n";
+		cerr << "Error: Output database path required, but " << argv[pos] << " found\n";
 		exit(1);
 	}
 	config.simple_output_desc.emplace_back(op_type);
@@ -506,7 +497,7 @@ bool CParametersParser::read_output_desc_for_simple()
 		{
 			if (op_type == CSimpleOutputDesc::OpType::KMERS_SUBTRACTION || op_type == CSimpleOutputDesc::OpType::REVERSE_KMERS_SUBTRACTION)
 			{
-				cout << "-oc not allowed for kmers_subtract and reverse_kmers_subtract as it doesn't make sense (equal k-mers form both input will not be present in output)\n";
+				cerr << "Error: -oc not allowed for kmers_subtract and reverse_kmers_subtract as it doesn't make sense (equal k-mers form both input will not be present in output)\n";
 				exit(1);
 			}
 			char* mode = argv[pos] + 3;
@@ -536,58 +527,20 @@ bool CParametersParser::read_output_desc_for_simple()
 			}
 			else
 			{
-				cout << "Unknown counter calculation mode: " << mode << ". Allowed values: min, max, sum, diff, left, right\n";
+				cerr << "Error: unknown counter calculation mode: " << mode << ". Allowed values: min, max, sum, diff, left, right\n";
 				exit(1);
 			}
 			++pos;
 		}
 		else
 		{
-			cout << "Error: Unknow parameter: " << argv[pos];
+			cerr << "Error: Unknow parameter: " << argv[pos];
 			Usage();
 			exit(1);
 		}
 
 	}
 	return true;
-}
-
-void CParametersParser::read_output_desc()
-{
-	if (pos >= argc)
-	{
-		cout << "Error: Output database source missed\n";
-		exit(1);
-	}
-	if (strncmp(argv[pos], "-", 1) == 0)
-	{
-		cout << "Error: Output database source required, but " << argv[pos] << "found\n";
-		exit(1);
-	}
-	
-	config.output_desc.file_src = argv[pos++];
-	for (int i = 0; i < 3 && pos < argc; ++i)
-	{
-		if (strncmp(argv[pos], "-", 1) != 0)
-			break;
-		if (strncmp(argv[pos], "-ci", 3) == 0)
-		{
-			config.output_desc.cutoff_min = replace_zero(atoi(argv[pos++] + 3), "-ci", 1);
-		}
-		else if (strncmp(argv[pos], "-cx", 3) == 0)
-		{
-			config.output_desc.cutoff_max = replace_zero(atoi(argv[pos++] + 3), "-cx", 1);
-		}
-		else if (strncmp(argv[pos], "-cs", 3) == 0)
-		{
-			config.output_desc.counter_max = replace_zero(atoi(argv[pos++] + 3), "-cs", 1);
-		}
-		else
-		{
-			cout << "Error: Unknow parameter: " << argv[pos];
-			exit(1);
-		}
-	}
 }
 
 void CParametersParser::Usage()
@@ -610,26 +563,8 @@ void CParametersParser::Parse()
 {
 	pos = 1;
 	parse_global_params();
-	if (strcmp(argv[pos], "intersect") == 0)
-	{
-		config.mode = CConfig::Mode::INTERSECTION;
-		config.counter_op_type = CounterOpType::MIN;
-	}
-	else if (strcmp(argv[pos], "kmers_subtract") == 0)
-	{
-		config.mode = CConfig::Mode::KMERS_SUBTRACT;
-	}
-	else if (strcmp(argv[pos], "counters_subtract") == 0)
-	{
-		config.mode = CConfig::Mode::COUNTERS_SUBTRACT;
-		config.counter_op_type = CounterOpType::DIFF;
-	}
-	else if (strcmp(argv[pos], "union") == 0)
-	{
-		config.mode = CConfig::Mode::UNION;
-		config.counter_op_type = CounterOpType::SUM;
-	}
-	else if (strcmp(argv[pos], "complex") == 0)
+
+	if (strcmp(argv[pos], "complex") == 0)
 	{
 		config.mode = CConfig::Mode::COMPLEX;
 	}
@@ -640,26 +575,6 @@ void CParametersParser::Parse()
 	else if (strcmp(argv[pos], "simple") == 0)
 	{
 		config.mode = CConfig::Mode::SIMPLE_SET;
-	}
-	else if (strcmp(argv[pos], "sort") == 0)
-	{
-		config.mode = CConfig::Mode::SORT;
-	}
-	else if (strcmp(argv[pos], "reduce") == 0)
-	{
-		config.mode = CConfig::Mode::REDUCE;
-	}
-	else if (strcmp(argv[pos], "compact") == 0)
-	{
-		config.mode = CConfig::Mode::COMPACT;
-	}
-	else if (strcmp(argv[pos], "histogram") == 0)
-	{
-		config.mode = CConfig::Mode::HISTOGRAM;
-	}
-	else if (strcmp(argv[pos], "dump") == 0)
-	{
-		config.mode = CConfig::Mode::DUMP;
 	}
 	else if (strcmp(argv[pos], "compare") == 0)
 	{
@@ -679,7 +594,7 @@ void CParametersParser::Parse()
 	}
 	else
 	{
-		cout << "Error: Unknow mode: " << argv[pos] << "\n";
+		cerr << "Error: Unknow mode: " << argv[pos] << "\n";
 		Usage();
 		exit(1);
 	}
@@ -691,22 +606,15 @@ void CParametersParser::Parse()
 	}
 
 	pos++;
-	if (config.mode == CConfig::Mode::INTERSECTION || config.mode == CConfig::Mode::KMERS_SUBTRACT || config.mode == CConfig::Mode::UNION || config.mode == CConfig::Mode::COUNTERS_SUBTRACT)
-	{		
-		read_operation_type();
-		read_input_desc(); //first input
-		read_input_desc(); //second input
-		read_output_desc(); //output
-	}
-	else if (config.mode == CConfig::Mode::FILTER)
+	if (config.mode == CConfig::Mode::FILTER)
 	{
-read_filter_params();
+		read_filter_params();
 		read_input_desc(); //kmc db
 		read_input_fastq_desc(); //fastq input
 		read_output_fastq_desc();
-		if (config.filtering_params.use_float_value && config.filtering_params.trim)
+		if (config.filtering_params.use_float_value && config.filtering_params.filter_mode != CFilteringParams::FilterMode::normal)
 		{
-			cout << " Error: trim (-t) is not compatibile with float values of cut off (-ci -cx)\n";
+			cerr << "Error: trim (-t) and soft mask (-hm) are not compatibile with float values of cut off (-ci -cx)\n";
 			exit(1);
 		}
 	}
@@ -714,7 +622,7 @@ read_filter_params();
 	{
 		if (strncmp(argv[pos], "-", 1) == 0)
 		{
-			cout << "Error: operations description file expected but " << argv[2] << " found\n";
+			cerr << "Error: operations description file expected but " << argv[2] << " found\n";
 			exit(1);
 		}		
 		complex_parser = make_unique<CParser>(argv[pos]);
@@ -729,7 +637,7 @@ read_filter_params();
 
 		if (config.transform_output_desc.size() == 0)
 		{
-			cout << "Error: output missed\n";
+			cerr << "Error: output missed\n";
 			Usage();
 			exit(1);
 		}
@@ -743,42 +651,9 @@ read_filter_params();
 			;
 		if (config.simple_output_desc.size() == 0)
 		{
-			cout << "Error: output missed\n";
+			cerr << "Error: output missed\n";
 			Usage();
 			exit(1);
-		}
-	}
-	else if (config.mode == CConfig::Mode::DUMP)
-	{
-		read_dump_params();
-		read_input_desc();
-		read_output_desc();
-
-	}
-	else if (config.mode == CConfig::Mode::SORT || config.mode == CConfig::Mode::HISTOGRAM || config.mode == CConfig::Mode::REDUCE || config.mode == CConfig::Mode::COMPACT)
-	{
-		read_input_desc();
-		read_output_desc();
-		if (config.mode == CConfig::Mode::COMPACT)
-		{
-			if (config.output_desc.counter_max)
-				cout << "Warning: -cs can not be specified for compact operation, value specified will be ignored\n";
-			config.output_desc.counter_max = 1;
-		}
-		if (config.mode == CConfig::Mode::HISTOGRAM)
-		{
-			if (config.output_desc.cutoff_max)
-				std::cout << "Warning: -cx not allowed for histogram output, value specified will be ignored\n";
-			if(config.output_desc.cutoff_min)
-				std::cout << "Warning: -ci not allowed for histogram output, value specified will be ignored\n";
-			if (config.output_desc.counter_max)
-				std::cout << "Warning: -cs not allowed for histogram output, value specified will be ignored\n";
-
-
-			config.output_desc.cutoff_max = config.input_desc.front().cutoff_max;
-			config.output_desc.cutoff_min = config.input_desc.front().cutoff_min;
-			config.output_desc.counter_max = 0;
-
 		}
 	}
 	else if (config.mode == CConfig::Mode::INFO)
@@ -839,7 +714,7 @@ bool CParametersParser::validate_input_dbs()
 	uint32 mode = config.headers.front().mode;
 	if (mode == 1)
 	{
-		cout << "Error: quality counters are not supported in kmc tools\n"; 
+		cerr << "Error: quality counters are not supported in kmc tools\n"; 
 		return false;
 	}
 	for (uint32 i = 1; i < config.input_desc.size(); ++i)
@@ -848,12 +723,12 @@ bool CParametersParser::validate_input_dbs()
 		CKMC_header& h = config.headers.back();
 		if (h.mode != mode)
 		{
-			cout << "Error: quality/direct based counters conflict!\n"; 
+			cerr << "Error: quality/direct based counters conflict!\n";
 			return false;
 		}
 		if (h.kmer_len != kmer_len)
 		{
-			cout << "Database " << config.input_desc.front().file_src << " contains " << kmer_len << "-mers, but database " << config.input_desc[i].file_src << " contains " << h.kmer_len << "-mers\n";
+			cerr << "Database " << config.input_desc.front().file_src << " contains " << kmer_len << "-mers, but database " << config.input_desc[i].file_src << " contains " << h.kmer_len << "-mers\n";
 			return false;
 		}
 	}
@@ -894,6 +769,9 @@ bool CParametersParser::validate_input_dbs()
 
 		for (auto& desc : config.transform_output_desc)
 		{
+			if (desc.op_type == CTransformOutputDesc::OpType::SET_COUNTS)
+				continue;
+
 			if (desc.cutoff_min == 0)
 				desc.cutoff_min = min_cutoff_min;
 			if (desc.cutoff_max == 0)
@@ -909,39 +787,30 @@ bool CParametersParser::validate_input_dbs()
 				desc.counter_max = max_counter_max;
 		}
 	}
-	else //old style operations
+	else if (config.mode == CConfig::Mode::COMPLEX)
 	{
 		if (config.output_desc.cutoff_min == 0)
 		{
 			uint32 min_cutoff_min = get_min_cutoff_min();
 			config.output_desc.cutoff_min = min_cutoff_min;
 			if (config.verbose)
-				cout << "-ci was not specified for output. It will be set to " << min_cutoff_min << "\n";
+				cerr << "Warning: -ci was not specified for output. It will be set to " << min_cutoff_min << "\n";
 		}
-
 		if (config.output_desc.cutoff_max == 0)
 		{
-			if (config.mode == CConfig::Mode::HISTOGRAM) //for histogram default value differs
-				config.output_desc.cutoff_max = MIN(config.headers.front().max_count, MIN(HISTOGRAM_MAX_COUNTER_DEFAULT, (uint32)((1ull << (8 * config.headers.front().counter_size)) - 1)));
-			else
-			{
-				uint32 max_cutoff_max = get_max_cutoff_max();
-				config.output_desc.cutoff_max = max_cutoff_max;
-			}
+			uint32 max_cutoff_max = get_max_cutoff_max();
+			config.output_desc.cutoff_max = max_cutoff_max;
 			if (config.verbose)
-				cout << "-cx was not specified for output. It will be set to " << config.output_desc.cutoff_max << "\n";
+				cerr << "Warning: -cx was not specified for output. It will be set to " << config.output_desc.cutoff_max << "\n";
 		}
 		if (config.output_desc.counter_max == 0)
 		{
-			uint32 max_counter_max = get_max_counter_max();			
+			uint32 max_counter_max = get_max_counter_max();
 			config.output_desc.counter_max = max_counter_max;
 			if (config.verbose)
-				cout << "-cs was not specified for output. It will be set to " << max_counter_max << "\n";
+				cerr << "Warning: -cs was not specified for output. It will be set to " << max_counter_max << "\n";
 		}
 	}
-	
-	
-
 	return true;
 }
 	
@@ -950,8 +819,8 @@ void CParametersParser::SetThreads()
 	uint32 threads_left = config.avaiable_threads;
 	//threads distribution: as many as possible for kmc2 database input, 1 thread for main thread which make operations calculation
 	vector<reference_wrapper<CInputDesc>> kmc2_desc;
-	
-	if (!config.Is1ArgOper()) 
+
+	if (config.IsSeparateThreadForMainProcessingNeeded())
 		threads_left = MAX(1, threads_left - 1);
 	
 	for (uint32 i = 0; i < config.headers.size(); ++i)

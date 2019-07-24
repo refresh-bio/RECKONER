@@ -7,11 +7,12 @@
 
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
 
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #include <string>
+#include <cmath>
 #include "../kmc_api/kmer_defs.h"
 
 #ifndef _NC_UTILS_H
@@ -121,7 +122,7 @@ public:
 		double corrector = .5 / powOf10[prec];
 		val += corrector;
 		double ipart;
-		double fractPart = modf(val, &ipart);
+		double fractPart = std::modf(val, &ipart);
 		uint32 intPart = (uint32)ipart;
 		uint32 len = Int2PChar(intPart, str);
 		uint32 pos = len;

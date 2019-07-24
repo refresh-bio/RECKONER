@@ -5,12 +5,11 @@
   
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #include "mem_disk_file.h"
-#include "asmlib_wrapper.h"
 #include <iostream>
 using namespace std;
 
@@ -19,7 +18,7 @@ using namespace std;
 CMemDiskFile::CMemDiskFile(bool _memory_mode)
 {
 	memory_mode = _memory_mode;
-	file = NULL;
+	file = nullptr;
 }
 
 //----------------------------------------------------------------------------------
@@ -35,7 +34,7 @@ void CMemDiskFile::Open(const string& f_name)
 
 		if (!file)
 		{
-			cout << "Error: Cannot open temporary file " << f_name << "\n";
+			cerr << "Error: Cannot open temporary file " << f_name << "\n";
 			exit(1);
 		}
 		setbuf(file, nullptr);
@@ -87,7 +86,7 @@ size_t CMemDiskFile::Read(uchar * ptr, size_t size, size_t count)
 		uint64 pos = 0;
 		for(auto& p : container)
 		{
-			A_memcpy(ptr + pos, p.first, p.second);
+			memcpy(ptr + pos, p.first, p.second);
 			pos += p.second;
 			delete[] p.first;
 		}
@@ -106,7 +105,7 @@ size_t CMemDiskFile::Write(const uchar * ptr, size_t size, size_t count)
 	if(memory_mode)
 	{
 		uchar *buf = new uchar[size * count];
-		A_memcpy(buf, ptr, size * count);
+		memcpy(buf, ptr, size * count);
 		container.push_back(make_pair(buf, size * count));
 		return size * count;
 	}
@@ -115,3 +114,5 @@ size_t CMemDiskFile::Write(const uchar * ptr, size_t size, size_t count)
 		return fwrite(ptr, size, count, file);
 	}
 }
+
+// ***** EOF

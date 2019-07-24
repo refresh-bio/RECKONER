@@ -4,13 +4,14 @@
   
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #ifndef RADULS_H
 #define RADULS_H
 
+#include <functional>
 #include "kmer.h"
 
 #define MAGIC_NUMBER 8
@@ -34,3 +35,5 @@ namespace RadulsSort
 }
 
 #endif // RADULS_H
+
+// ***** EOF

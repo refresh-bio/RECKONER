@@ -4,8 +4,8 @@
   
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #ifndef _QUEUES_H
@@ -21,7 +21,6 @@
 #include <map>
 #include <string>
 #include "mem_disk_file.h"
-#include "asmlib_wrapper.h"
 
 using namespace std;
 
@@ -35,6 +34,13 @@ using std::thread;
 
 enum class FilePart { Begin, Middle, End };
 enum class CompressionType { plain, gzip, bzip2 };
+
+
+// Reader will clasify reads as normal or long. Distinction is not strict, it depends on current configuration (mem limit and no. of threads). In case of fastq reader will assure, that
+// only header and read are sent to splitter (qual and its header will be ignored) 
+enum class ReadType { normal_read, long_read, na }; //there is no strict distincion between normal and long reads, read will be clasified as long if reader is not able to determine whole fastq/fasta record (header, read, header, qual/header, read)
+
+
 class CBinaryPackQueue
 {
 	std::queue<tuple<uchar*, uint64, FilePart, CompressionType>> q;
@@ -76,6 +82,17 @@ public:
 		return true;
 	}
 
+	bool peek_next_pack(uchar* &data, uint64 &size)
+	{
+		std::unique_lock<std::mutex> lck(mtx);
+		cv_pop.wait(lck, [this] {return !q.empty() || completed; });
+		if (q.empty())
+			return false;
+		data = get<0>(q.front());
+		size = get<1>(q.front());
+		return get<2>(q.front()) != FilePart::End;
+	}
+
 	bool is_next_last()
 	{
 		std::unique_lock<std::mutex> lck(mtx);
@@ -93,6 +110,31 @@ public:
 	}
 };
 
+
+class CMissingEOL_at_EOF_counter
+{
+	uint32 n_missing;
+	std::mutex mtx;
+public:
+	CMissingEOL_at_EOF_counter()
+	{
+		Reset();
+	}
+	void Reset()
+	{
+		n_missing = 0;
+	}
+	void RegisterMissingEOL()
+	{
+		std::lock_guard<std::mutex> lck(mtx);
+		++n_missing;
+	}
+	uint32 Get()
+	{
+		return n_missing;
+	}
+	
+};
 
 //************************************************************************************************************
 class CInputFilesQueue {
@@ -146,7 +188,7 @@ public:
 
 //************************************************************************************************************
 class CPartQueue {
-	typedef pair<uchar *, uint64> elem_t;
+	typedef tuple<uchar *, uint64, ReadType> elem_t;
 	typedef queue<elem_t, list<elem_t>> queue_t;
 
 	queue_t q;
@@ -168,34 +210,36 @@ public:
 		lock_guard<mutex> lck(mtx);
 		return q.empty();
 	}
+
 	bool completed() {
 		lock_guard<mutex> lck(mtx);
 		return q.empty() && !n_readers;
 	}
+
 	void mark_completed() {
 		lock_guard<mutex> lck(mtx);
 		n_readers--;
 		if(!n_readers)
 			cv_queue_empty.notify_all();
 	}
-	void push(uchar *part, uint64 size) {
+
+	void push(uchar *part, uint64 size, ReadType read_type) {
 		unique_lock<mutex> lck(mtx);
 		
 		bool was_empty = q.empty();
-		q.push(make_pair(part, size));
+		q.push(make_tuple(part, size, read_type));
 
 		if(was_empty)
 			cv_queue_empty.notify_all();
 	}
-	bool pop(uchar *&part, uint64 &size) {
+
+	bool pop(uchar *&part, uint64 &size, ReadType& read_type) {
 		unique_lock<mutex> lck(mtx);
 		cv_queue_empty.wait(lck, [this]{return !this->q.empty() || !this->n_readers;}); 
 
 		if(q.empty())
 			return false;
-
-		part = q.front().first;
-		size = q.front().second;
+		std::tie(part, size, read_type) = q.front();
 		q.pop();
 
 		return true;
@@ -205,7 +249,7 @@ public:
 //************************************************************************************************************
 class CStatsPartQueue
 {
-	typedef pair<uchar *, uint64> elem_t;
+	typedef tuple<uchar *, uint64, ReadType> elem_t;
 	typedef queue<elem_t, list<elem_t>> queue_t;
 
 	queue_t q;
@@ -236,14 +280,14 @@ public:
 		return q.empty() && !n_readers;
 	}
 
-	bool push(uchar *part, uint64 size) {
+	bool push(uchar *part, uint64 size, ReadType read_type) {
 		unique_lock<mutex> lck(mtx);
 
 		if (bytes_to_read <= 0)
 			return false;
 
 		bool was_empty = q.empty();
-		q.push(make_pair(part, size));
+		q.push(make_tuple(part, size, read_type));
 		bytes_to_read -= size;
 		if (was_empty)
 			cv_queue_empty.notify_one();
@@ -251,15 +295,14 @@ public:
 		return true;
 	}
 
-	bool pop(uchar *&part, uint64 &size) {
+	bool pop(uchar *&part, uint64 &size, ReadType& read_type) {
 		unique_lock<mutex> lck(mtx);
 		cv_queue_empty.wait(lck, [this]{return !this->q.empty() || !this->n_readers; });
 
 		if (q.empty())
 			return false;
 
-		part = q.front().first;
-		size = q.front().second;
+		std::tie(part, size, read_type) = q.front();
 		q.pop();
 
 		return true;
@@ -474,7 +517,7 @@ public:
 
 			uint32 rec_len = (kxmer_symbols + 3) / 4;
 
-			uint64 lut_recs = 1 << (2 * lut_prefix_len);
+			uint64 lut_recs = 1ull << (2 * lut_prefix_len);
 			uint64 lut_size = lut_recs * sizeof(uint64);
 
 			auto req_size = get_req_size(rec_len, round_up_to_alignment(size), round_up_to_alignment(input_kmer_size), round_up_to_alignment(out_buffer_size), round_up_to_alignment(kxmer_counter_size), round_up_to_alignment(lut_size));
@@ -823,6 +866,7 @@ public:
 
 //************************************************************************************************************
 class CMemoryPool {
+protected:
 	int64 total_size;
 	int64 part_size;
 	int64 n_parts_total;
@@ -836,9 +880,9 @@ class CMemoryPool {
 
 public:
 	CMemoryPool(int64 _total_size, int64 _part_size) {
-		raw_buffer = NULL;
-		buffer = NULL;
-		stack  = NULL;
+		raw_buffer = nullptr;
+		buffer = nullptr;
+		stack  = nullptr;
 		prepare(_total_size, _part_size);
 	}
 	~CMemoryPool() {
@@ -867,12 +911,12 @@ public:
 	void release(void) {
 		if(raw_buffer)
 			delete[] raw_buffer;
-		raw_buffer = NULL;
-		buffer     = NULL;
+		raw_buffer = nullptr;
+		buffer     = nullptr;
 
 		if(stack)
 			delete[] stack;
-		stack = NULL;
+		stack = nullptr;
 	}
 
 	// Allocate memory buffer - uchar*
@@ -976,6 +1020,45 @@ public:
 };
 
 
+class CMemoryPoolWithBamSupport : public CMemoryPool
+{
+private:
+	uint32 bam_current_id = 0;
+	std::set<uint32_t> finished_ids;
+public:
+	CMemoryPoolWithBamSupport(int64 _total_size, int64 _part_size) : CMemoryPool(_total_size, _part_size) 
+	{
+		
+	}
+
+	void bam_notify_id_finished(uint32_t id)
+	{
+		lock_guard<mutex> lck(mtx);
+		finished_ids.insert(id);
+		std::set<uint32_t>::iterator it;
+		while ((it = finished_ids.find(bam_current_id)) != finished_ids.end())
+		{
+			finished_ids.erase(it);
+			++bam_current_id;
+		}
+		cv.notify_all();
+	}
+
+	// Allock memory buffer for bam input, assure at least one part available for PrepareForSplitter task of CBamTaskManager and for current id
+	void bam_reserve_gunzip(uchar* &part, uint32_t id)
+	{
+		unique_lock<mutex> lck(mtx);
+		cv.wait(lck, [this, id] {
+			if (id == bam_current_id)
+				return n_parts_free > 1;
+			else
+				return n_parts_free > 2;
+		});
+
+		part = buffer + stack[--n_parts_free] * part_size;
+	}
+};
+
 class CMemoryBins {
 	int64 total_size;
 	int64 free_size;
@@ -1000,9 +1083,9 @@ private:
 
 public:
 	CMemoryBins(int64 _total_size, uint32 _n_bins, bool _use_strict_mem, uint32 _n_threads) {
-		raw_buffer = NULL;
-		buffer = NULL;
-		bin_ptrs = NULL;
+		raw_buffer = nullptr;
+		buffer = nullptr;
+		bin_ptrs = nullptr;
 		use_strict_mem = _use_strict_mem;
 		n_threads = _n_threads;
 		prepare(_total_size, _n_bins);
@@ -1021,7 +1104,7 @@ public:
 		return (x + ALIGNMENT - 1) / ALIGNMENT * ALIGNMENT;
 	}
 
-	void parallel_memory_init(uchar *ptr, uint64 size)
+	void parallel_memory_init()
 	{
 		// Initialize the memory in parallel
 		vector<thread> v_thr;
@@ -1050,7 +1133,7 @@ public:
 		while (((uint64)buffer) % ALIGNMENT)
 			buffer++;
 
-		parallel_memory_init(buffer, total_size);
+		parallel_memory_init();
 
 		map_reserved.clear();
 		map_reserved[total_size] = 0;							// guard
@@ -1059,26 +1142,26 @@ public:
 	void release(void) {
 		if (raw_buffer)
 			::free(raw_buffer);
-		raw_buffer = NULL;
-		buffer = NULL;
+		raw_buffer = nullptr;
+		buffer = nullptr;
 
 		if (bin_ptrs)
 			delete[] bin_ptrs;
-		bin_ptrs = NULL;
+		bin_ptrs = nullptr;
 	}
 
 	void log(string info, uint64 size = 0)
 	{
 		return;			// !!! Log will be removed 
 
-		cout << info;
+		cerr << info;
 		if (size)
-			cout << " [" << size << "]: ";
+			cerr << " [" << size << "]: ";
 		else
-			cout << ": ";
+			cerr << ": ";
 		for (auto &p : map_reserved)
-			cout << "(" << p.first << ", " << p.second << ")   ";
-		cout << endl;
+			cerr << "(" << p.first << ", " << p.second << ")   ";
+		cerr << endl;
 
 	}
 
@@ -1165,7 +1248,7 @@ public:
 		if (kxmer_counter_size)
 			get<6>(bin_ptrs[bin_id]) = base_ptr + kxmers_size;								//kxmers counter
 		else
-			get<6>(bin_ptrs[bin_id]) = NULL;
+			get<6>(bin_ptrs[bin_id]) = nullptr;
 		free_size -= req_size;
 		get<7>(bin_ptrs[bin_id]) = req_size;
 
@@ -1242,7 +1325,7 @@ public:
 				while (((uint64)buffer) % ALIGNMENT)
 					buffer++;
 
-				parallel_memory_init(buffer, total_size);
+				parallel_memory_init();
 
 				map_reserved.clear();
 				map_reserved[total_size] = 0;
@@ -1284,7 +1367,7 @@ public:
 			if (kxmer_counter_size)
 				get<6>(bin_ptrs[bin_id]) = base_ptr + kxmers_size;								// kxmers counter
 			else
-				get<6>(bin_ptrs[bin_id]) = NULL;
+				get<6>(bin_ptrs[bin_id]) = nullptr;
 			get<7>(bin_ptrs[bin_id]) = req_size;
 
 			free_size -= req_size;
@@ -1384,7 +1467,7 @@ public:
 			if (kxmer_counter_size)
 				get<6>(bin_ptrs[bin_id]) = base_ptr + kxmers_size;								//kxmers counter
 			else
-				get<6>(bin_ptrs[bin_id]) = NULL;
+				get<6>(bin_ptrs[bin_id]) = nullptr;
 			
 			get<7>(bin_ptrs[bin_id]) = req_size;
 
@@ -1393,10 +1476,12 @@ public:
 			
 			// Sub-Case 2a - input data must be moved to correct position
 			if (sorting_phases % 2 == 0)				// Must move input data
-				A_memcpy(base_ptr + part1_size, base_ptr, file_size);
+				memcpy(base_ptr + part1_size, base_ptr, file_size);
 			// Sub-Case 2b - nothing has to be done with input data
 			else
-				;
+			{
+				
+			}
 
 			log("Ext-e end");
 			return true;
@@ -1426,14 +1511,14 @@ public:
 		if (kxmer_counter_size)
 			get<6>(bin_ptrs[bin_id]) = base_ptr + kxmers_size;								//kxmers counter
 		else
-			get<6>(bin_ptrs[bin_id]) = NULL;
+			get<6>(bin_ptrs[bin_id]) = nullptr;
 		get<7>(bin_ptrs[bin_id]) = req_size;
 
 		free_size += file_size;
 		free_size -= req_size;
 
 		// Make a copy of the readed part
-		A_memcpy(get<1>(bin_ptrs[bin_id]), readed_part, file_size);
+		memcpy(get<1>(bin_ptrs[bin_id]), readed_part, file_size);
 
 		// Remove the memory of the already copied part of data
 		map_reserved.erase(present_pos);
@@ -1465,17 +1550,17 @@ public:
 	{		
 		unique_lock<mutex> lck(mtx);
 		if (t == mba_input_file)
-			get<1>(bin_ptrs[bin_id]) = NULL;
+			get<1>(bin_ptrs[bin_id]) = nullptr;
 		else if (t == mba_input_array)
-			get<2>(bin_ptrs[bin_id]) = NULL;
+			get<2>(bin_ptrs[bin_id]) = nullptr;
 		else if (t == mba_tmp_array)
-			get<3>(bin_ptrs[bin_id]) = NULL;
+			get<3>(bin_ptrs[bin_id]) = nullptr;
 		else if (t == mba_suffix)
-			get<4>(bin_ptrs[bin_id]) = NULL;
+			get<4>(bin_ptrs[bin_id]) = nullptr;
 		else if (t == mba_lut)
-			get<5>(bin_ptrs[bin_id]) = NULL;
+			get<5>(bin_ptrs[bin_id]) = nullptr;
 		else if (t == mba_kxmer_counters)
-			get<6>(bin_ptrs[bin_id]) = NULL;
+			get<6>(bin_ptrs[bin_id]) = nullptr;
 
 		if (!get<1>(bin_ptrs[bin_id]) && !get<2>(bin_ptrs[bin_id]) && !get<3>(bin_ptrs[bin_id]) && !get<4>(bin_ptrs[bin_id]) &&
 			!get<5>(bin_ptrs[bin_id]) && !get<6>(bin_ptrs[bin_id]))
@@ -1484,7 +1569,7 @@ public:
 
 			log("Free");
 
-			get<0>(bin_ptrs[bin_id]) = NULL;
+			get<0>(bin_ptrs[bin_id]) = nullptr;
 			free_size += get<7>(bin_ptrs[bin_id]);
 			cv.notify_all();
 		}
@@ -1986,14 +2071,7 @@ public:
 		}
 
 		for (uint32 i = pos; i < sorted_bins.size(); ++i)
-			n_sorters[sorted_bins[i].first] = max_sorters/*1*/;
-
-		/*cout << "bin_id;req_size;threads per bin" << endl;
-		for (auto &e : sorted_bins)
-		{
-			cout << e.first << ";" << e.second << ";" << threads_per_bin[e.first] << endl;
-		}
-		cout << "--------------------------------------------------------------------------------------------------------------\n";*/
+			n_sorters[sorted_bins[i].first] = max_sorters/*1*/;		
 	}
 
 	bool GetNext(int32 &bin_id, uchar *&part, uint64 &size, uint64 &n_rec, int& n_threads)
@@ -2017,8 +2095,7 @@ public:
 
 			int should_work_with_additional = max_sorters % n_sorters[bin_id];
 			
-			n_threads = max_sorters / n_sorters[bin_id];
-			//cout << "works_with_additional: " << working_with_additional << ", should_work_with_additional: " << should_work_with_additional << endl;
+			n_threads = max_sorters / n_sorters[bin_id];			
 			if (working_with_additional < should_work_with_additional)
 			{
 				++n_threads;
@@ -2033,8 +2110,6 @@ public:
 		if (max_sorters / n_sorters[bin_id] < n_threads)
 			++working_with_additional;
 		
-		//cout << "bin " << bin_id << ": " << threads_per_bin[bin_id] << " sorters, threads assigned: " << n_threads << endl; //TODO: remove
-
 		return true;
 	}
 
@@ -2043,9 +2118,7 @@ public:
 		lock_guard<mutex> lck(mtx);		
 		free_threads += n_threads;	
 		if (max_sorters / n_sorters[bin_id] < (int)n_threads)
-			--working_with_additional;
-
-		//cout << "Return Thread, working_with_additional: " << working_with_additional << endl;
+			--working_with_additional;		
 		cv_get_next.notify_all();
 	}
 
@@ -2059,6 +2132,216 @@ public:
 		lock_guard<mutex> lck(mtx);
 		cv_get_next.notify_all();
 	}
+};
+
+class CBamTaskManager
+{
+	mutex mtx;
+	condition_variable cv;
+	bool binary_reader_completed = false;
+	bool ignore_rest = false;
+	
+	queue<tuple<uchar*, uint64, uint32, uint32>> bam_binary_part_queue; //data, size, id (of pack), file no
+
+	bool splitters_preparer_is_working = false;
+	
+	//helper class
+	class GunzippedQueue
+	{
+		map<uint32_t, queue<tuple<uchar*, uint64, uint32, uint32>>> _m; //data, size, id, file_no
+		
+		uint32_t current_id = 0;
+		uint32_t last_id = (uint32_t)-1; //MAX_UINT32_T means last id is not known yet
+		set<uint32_t> finished_ids;
+	public:
+		void Push(uchar* data, uint64 size, uint32 id, uint32 file_no)
+		{
+			_m[id].emplace(data, size, id, file_no); 
+		}
+
+		void NotifyIdFinished(uint32_t id)
+		{
+			finished_ids.insert(id);
+		}
+
+		void SetLastId(uint32_t value)
+		{
+			last_id = value;
+		}
+
+		enum class NextPackState { SUCCESS, NOT_YET_PRESENT, NO_MORE_PACKS };
+		NextPackState GetNextPartState(uchar* &data, uint64 &size, uint32 &id, uint32 &file_no)
+		{
+			set<uint32_t>::iterator it;
+			while (true)
+			{
+				auto& q = _m[current_id];
+				if (!q.empty())
+				{
+					tie(data, size, id, file_no/*, test_id*/) = q.front();
+					q.pop();
+
+					return NextPackState::SUCCESS;
+				}
+				else if ((it = finished_ids.find(current_id)) != finished_ids.end()) //if current id is completed move to next id
+				{
+					finished_ids.erase(it);
+					_m.erase(current_id);
+					++current_id;
+				}
+				else if (last_id != (uint32_t)(-1) && current_id > last_id) //last id is known and current id is bigger than last -> completed
+				{
+					return NextPackState::NO_MORE_PACKS;
+				}
+				else
+				{
+					return NextPackState::NOT_YET_PRESENT; //pack is not yet present
+				}
+			}
+		}
+
+		void IgnoreRest(CMemoryPool* pmm_fastq)
+		{
+			for (auto& e : _m)
+			{
+				auto& q = e.second;
+				while (!q.empty())
+				{
+					pmm_fastq->free(get<0>(q.front()));
+					q.pop();
+				}
+			}
+		}
+	};
+
+	GunzippedQueue gunzipped_queue;
+public:
+	
+	enum TaskType { Gunzip, PrepareForSplitter}; 
+	bool PushBinaryPack(uchar* data, uint64 size, uint32 id, uint32 file_no)
+	{
+		lock_guard<mutex> lck(mtx);
+		if (ignore_rest)
+			return false;
+		bool was_empty = bam_binary_part_queue.empty();
+		bam_binary_part_queue.emplace(data, size, id, file_no);
+		if (was_empty)
+			cv.notify_all();
+		return true;
+	}
+
+	void NotifyBinaryReaderCompleted(uint32 last_id)
+	{
+		lock_guard<mutex> lck(mtx);
+		gunzipped_queue.SetLastId(last_id);
+		binary_reader_completed = true;
+		cv.notify_all();
+	}
+
+	bool PushGunzippedPart(uchar* data, uint64 size, uint32 id, uint32 file_no)
+	{
+		lock_guard<mutex> lck(mtx);
+
+		if (ignore_rest)
+			return false;
+		gunzipped_queue.Push(data, size, id, file_no);
+
+		cv.notify_all();
+		return true;
+	}
+
+	void NotifyIdFinished(uint32 id)
+	{
+		lock_guard<mutex> lck(mtx);
+		gunzipped_queue.NotifyIdFinished(id);
+		cv.notify_all();
+	}
+
+	
+	void NotifySplitterPrepareTaskDone()
+	{
+		lock_guard<mutex> lck(mtx);
+		splitters_preparer_is_working = false;
+		cv.notify_all();
+	}
+
+	bool TakeNextPrepareForSplitterTaskIfExists(uchar* &data, uint64 &size, uint32 &id, uint32 &file_no)
+	{
+		lock_guard<mutex> lck(mtx);
+		if (splitters_preparer_is_working)
+			return false;
+		auto state = gunzipped_queue.GetNextPartState(data, size, id, file_no);
+		if (state == GunzippedQueue::NextPackState::SUCCESS)
+		{
+			splitters_preparer_is_working = true;
+			return true;
+		}
+		return false;
+	}
+
+	bool PopTask(TaskType& taskType, uchar* &data, uint64 &size, uint32 &id, uint32 &file_no)
+	{
+		unique_lock<mutex> lck(mtx);
+		GunzippedQueue::NextPackState state = GunzippedQueue::NextPackState::NOT_YET_PRESENT;
+		cv.wait(lck, [this, &data, &size, &id, &file_no, &state]
+		{
+			if (ignore_rest)
+				return true;
+			if (!splitters_preparer_is_working) //only one thread can prepare parts for splitters
+			{
+				state = gunzipped_queue.GetNextPartState(data, size, id, file_no);
+				if (state == GunzippedQueue::NextPackState::SUCCESS)
+					return true;
+			}
+			if (!bam_binary_part_queue.empty())
+				return true;
+
+			if(binary_reader_completed && state == GunzippedQueue::NextPackState::NO_MORE_PACKS)
+				return true;
+			return false;			
+		});
+		
+		if (ignore_rest)
+			return false;
+
+		if (state == GunzippedQueue::NextPackState::SUCCESS)
+		{
+			splitters_preparer_is_working = true;
+			taskType = TaskType::PrepareForSplitter;
+			return true;
+		}
+
+		if (!bam_binary_part_queue.empty())
+		{
+			taskType = TaskType::Gunzip;
+			tie(data, size, id, file_no) = bam_binary_part_queue.front();
+			bam_binary_part_queue.pop();
+			return true;
+		}
+
+		return false;
+	}
+
+	void IgnoreRest(CMemoryPool* pmm_fastq, CMemoryPool* pmm_binary_file_reader)
+	{
+		lock_guard<mutex> lck(mtx);
+		ignore_rest = true;
+		while (!bam_binary_part_queue.empty())
+		{
+			pmm_binary_file_reader->free(get<0>(bam_binary_part_queue.front()));
+			bam_binary_part_queue.pop();
+		}
+		gunzipped_queue.IgnoreRest(pmm_fastq);
+
+		cv.notify_all();
+	}
+
+	struct SSplitterPrepareState
+	{
+		uint32 current_file_no = (uint32)(-1); //-1 means not started
+		uchar* prev_part_data = nullptr;
+		uint64 prev_part_size = 0;
+	} splitter_prepare_state;
 };
 
 #endif

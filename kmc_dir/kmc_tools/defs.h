@@ -4,8 +4,8 @@
   
   Authors: Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #ifndef _DEFS_H
@@ -27,13 +27,11 @@ using uchar = unsigned char;
 #define BYTE_LOG(x) (((x) < (1 << 8)) ? 1 : ((x) < (1 << 16)) ? 2 : ((x) < (1 << 24)) ? 3 : 4)
 
 
-//#define DISABLE_ASMLIB
-
 //#define ENABLE_DEBUG
 //#define ENABLE_LOGGER
 
-#define KMC_VER		"3.0.0"
-#define KMC_DATE	"2017-01-28"
+#define KMC_VER		"3.1.1"
+#define KMC_DATE	"2019-05-19"
 
 #define DEFAULT_CIRCULAL_QUEUE_CAPACITY (4)
 

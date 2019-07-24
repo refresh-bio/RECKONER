@@ -4,8 +4,8 @@
   
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #ifndef _CPU_INFO_
@@ -14,10 +14,21 @@
 
 class CCpuInfo
 {
-	static void cpuid(int output[4], int functionnumber);
+
 public:
-	static std::string GetVendor();
-	static std::string GetBrand();
+	static const std::string& GetVendor();
+	static const std::string& GetBrand();
+
+	static bool SSE_Enabled();
+	static bool SSE2_Enabled();
+	static bool SSE3_Enabled();
+	static bool SSE41_Enabled();
+	static bool SSE42_Enabled();
+	static bool AVX_Enabled();
+	static bool AVX2_Enabled();
+
 };
 
 #endif
+
+// ***** EOF

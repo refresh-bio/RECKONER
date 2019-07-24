@@ -4,8 +4,8 @@
 
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
 
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #include "stdafx.h"
@@ -45,7 +45,7 @@ bool CKMCFile::OpenForRA(const std::string &file_name)
 
 	sufix_file_buf = new uchar[size];
 	result = fread(sufix_file_buf, 1, size, file_suf);
-	if (result == 0)
+	if (result != size)
 		return false;
 
 	fclose(file_suf);
@@ -66,7 +66,6 @@ bool CKMCFile::OpenForRA(const std::string &file_name)
 bool CKMCFile::OpenForListing(const std::string &file_name)
 {
 	uint64 size;
-	size_t result;
 
 	if (is_opened)
 		return false;
@@ -87,9 +86,18 @@ bool CKMCFile::OpenForListing(const std::string &file_name)
 		return false;
 
 	sufix_file_buf = new uchar[part_size];
-	result = fread(sufix_file_buf, 1, part_size, file_suf);
-	if (result == 0)
+
+	suffix_file_total_to_read = size;
+	suf_file_left_to_read = suffix_file_total_to_read;
+	auto to_read = MIN(suf_file_left_to_read, part_size);
+	auto readed = fread(sufix_file_buf, 1, to_read, file_suf);
+	if (readed != to_read)
+	{
+		std::cerr << "Error: some error while reading suffix file\n";
 		return false;
+	}
+
+	suf_file_left_to_read -= readed;
 
 	is_opened = opened_for_listing;
 	prefix_index = 0;
@@ -109,7 +117,7 @@ CKMCFile::CKMCFile()
 
 	is_opened = closed;
 	end_of_file = false;
-};
+}
 //----------------------------------------------------------------------------------	
 CKMCFile::~CKMCFile()
 {
@@ -123,7 +131,7 @@ CKMCFile::~CKMCFile()
 		delete[] sufix_file_buf;
 	if (signature_map)
 		delete[] signature_map;
-};
+}
 //----------------------------------------------------------------------------------	
 // Open a file, recognize its size and check its marker. Auxiliary function.
 // IN	: file_name - the name of a file to open
@@ -168,7 +176,7 @@ bool CKMCFile::OpenASingleFile(const std::string &file_name, FILE *&file_handler
 	}
 
 	return true;
-};
+}
 //-------------------------------------------------------------------------------------
 // Recognize current parameters from kmc_databese. Auxiliary function.
 // IN	: the size of the file *.kmc_pre, without initial and terminal markers 
@@ -202,7 +210,9 @@ bool CKMCFile::ReadParamsFrom_prefix_file_buf(uint64 &size)
 		result = fread(&signature_len, 1, sizeof(uint32), file_pre);
 		result = fread(&min_count, 1, sizeof(uint32), file_pre);
 		original_min_count = min_count;
-		result = fread(&max_count, 1, sizeof(uint32), file_pre);
+		uint32 max_count_uint32;
+		result = fread(&max_count_uint32, 1, sizeof(uint32), file_pre);
+		max_count = max_count_uint32;
 		original_max_count = max_count;
 		result = fread(&total_kmers, 1, sizeof(uint64), file_pre);
 		result = fread(&both_strands, 1, 1, file_pre);
@@ -604,9 +614,16 @@ bool CKMCFile::ReadNextKmer(CKmerAPI &kmer, uint64 &count)
 //-------------------------------------------------------------------------------
 void CKMCFile::Reload_sufix_file_buf()
 {
-	fread (sufix_file_buf, 1, (size_t) part_size, file_suf);
+	auto to_read = MIN(suf_file_left_to_read, part_size);
+	auto readed = fread(sufix_file_buf, 1, (size_t)to_read, file_suf);
+	suf_file_left_to_read -= readed;
+	if (readed != to_read)
+	{
+		std::cerr << "Error: some error while reading suffix file\n";
+		exit(1);
+	}
 	index_in_partial_buf = 0;
-};
+}
 //-------------------------------------------------------------------------------
 // Release memory and close files in case they were opened 
 // RET: true - if files have been readed
@@ -639,7 +656,7 @@ bool CKMCFile::Close()
 	}
 	else
 		return false;
-};
+}
 //----------------------------------------------------------------------------------
 // Set initial values to enable listing kmers from the begining. Only in listing mode
 // RET: true - if a file has been opened for listing
@@ -648,9 +665,17 @@ bool CKMCFile::RestartListing(void)
 {
 	if(is_opened == opened_for_listing)
 	{
-		
-		my_fseek ( file_suf , 4 , SEEK_SET );
-		fread (sufix_file_buf, 1, (size_t) part_size, file_suf);
+		my_fseek(file_suf , 4 , SEEK_SET);
+		suf_file_left_to_read = suffix_file_total_to_read;
+		auto to_read = MIN(suf_file_left_to_read, part_size);
+		auto readed = fread(sufix_file_buf, 1, to_read, file_suf);
+		if (readed != to_read)
+		{
+			std::cerr << "Error: some error while reading suffix file\n";
+			return false;
+		}
+
+		suf_file_left_to_read -= readed;
 		prefix_index = 0;
 		sufix_number = 0;
 		index_in_partial_buf = 0;
@@ -661,7 +686,7 @@ bool CKMCFile::RestartListing(void)
 	}
 	return false;
 		
-};
+}
 //----------------------------------------------------------------------------------------
 // Set the minimal value for a counter. Kmers with counters below this theshold are ignored
 // IN	: x - minimal value for a counter
@@ -669,7 +694,7 @@ bool CKMCFile::RestartListing(void)
 //----------------------------------------------------------------------------------------
 bool CKMCFile::SetMinCount(uint32 x)
 {
-	if((original_min_count <= x) && (x < max_count))
+	if((original_min_count <= x) && (x <= max_count))
 	{
 		min_count = x;
 		return true;
@@ -685,7 +710,7 @@ bool CKMCFile::SetMinCount(uint32 x)
 uint32 CKMCFile::GetMinCount(void)
 {
 	return min_count;
-};
+}
 
 //----------------------------------------------------------------------------------------
 // Set the maximal value for a counter. Kmers with counters above this theshold are ignored
@@ -694,7 +719,7 @@ uint32 CKMCFile::GetMinCount(void)
 //----------------------------------------------------------------------------------------
 bool CKMCFile::SetMaxCount(uint32 x)
 {
-	if((original_max_count >= x) && (x > min_count))
+	if((original_max_count >= x) && (x >= min_count))
 	{
 		max_count = x;
 		return true; 
@@ -845,7 +870,7 @@ bool CKMCFile::Info(uint32 &_kmer_length, uint32 &_mode, uint32 &_counter_size, 
 		return true;
 	}
 	return false;
-};
+}
 
 // Get current parameters from kmer_database
 bool CKMCFile::Info(CKMCFileInfo& info)
@@ -1357,7 +1382,7 @@ bool CKMCFile::GetCountersForRead_kmc2(const std::string& read, std::vector<uint
 //---------------------------------------------------------------------------------
 bool CKMCFile::BinarySearch(int64 index_start, int64 index_stop, const CKmerAPI& kmer, uint64& counter, uint32 pattern_offset)
 {
-	if (index_start >= total_kmers)
+	if (index_start >= static_cast<int64>(total_kmers))
 		return false;
 	uchar *sufix_byte_ptr = nullptr;
 	uint64 sufix = 0;

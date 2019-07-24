@@ -4,13 +4,12 @@
   
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #include "stdafx.h"
 #include "bkb_reader.h"
-#include "asmlib_wrapper.h"
 
 
 //************************************************************************************************************
@@ -41,7 +40,7 @@ void CBigKmerBinReader::ProcessBigBin()
 	while (tlbq->get_next(bin_id))
 	{
 		bd->read(bin_id, file, name, size, n_rec, n_plus_x_recs, buffer_size, kmer_len);
-		cout << "*";
+		cerr << "*";
 		file->Rewind();
 		end_pos = 0;
 		sm_pmm_input_file->reserve(file_buff);
@@ -51,7 +50,7 @@ void CBigKmerBinReader::ProcessBigBin()
 			for (; end_pos + 1 + (file_buff[end_pos] + kmer_len + 3) / 4 <= in_buffer; end_pos += 1 + (file_buff[end_pos] + kmer_len + 3) / 4);
 			uint64 rest = in_buffer - end_pos;
 			sm_pmm_input_file->reserve(tmp);
-			A_memcpy(tmp, file_buff + end_pos, rest);
+			memcpy(tmp, file_buff + end_pos, rest);
 			bbpq->push(bin_id, file_buff, end_pos);
 			file_buff = tmp;
 			end_pos = rest;

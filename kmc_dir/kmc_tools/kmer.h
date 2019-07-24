@@ -4,8 +4,8 @@ The homepage of the KMC project is http://sun.aei.polsl.pl/kmc
 
 Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
 
-Version: 3.0.0
-Date   : 2017-01-28
+Version: 3.1.1
+Date   : 2019-05-19
 */
 
 #ifndef _KMER_H
@@ -503,13 +503,13 @@ inline void CKmer<1>::set_byte(const uint32 p, uchar x)
 }
 
 // *********************************************************************
-inline void CKmer<1>::set_bytes(const uint32 p, const uint32 n, uint32 x)
+inline void CKmer<1>::set_bytes(const uint32 p, const uint32 /*n*/, uint32 x)
 {
 	data += ((uint64) x) << (p << 3);
 }
 
 // *********************************************************************
-inline void CKmer<1>::set_bits(const uint32 p, const uint32 n, uint64 x)
+inline void CKmer<1>::set_bits(const uint32 p, const uint32 /*n*/, uint64 x)
 {
 	//	data |= x << p;
 	data += x << p;
@@ -578,6 +578,12 @@ inline void CKmer<1>::store(uchar *buffer, int32 p, int32 n)
 // *********************************************************************
 inline void CKmer<1>::load_fast(uchar *&buffer, int32 n, bool little_endian)
 {
+	//for short k-mers n may be 0
+	if (!n)
+	{
+		data = 0;
+		return;
+	}
 	//It compiles to the same as data = *(uint64*)buffer; ->  mov	rax, QWORD PTR [rcx]
 	//i am not sure about other platforms than x86
 	memcpy(&data, buffer, sizeof(data)); 
@@ -635,7 +641,7 @@ char CKmer<1>::get_symbol(int p)
 }
 
 // *********************************************************************
-void CKmer<1>::set_prefix(CKmer<1>& rhs, uint32 suffix_bytes)
+void CKmer<1>::set_prefix(CKmer<1>& rhs, uint32 /*suffix_bytes*/)
 {
 	data += rhs.data;
 }

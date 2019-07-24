@@ -4,7 +4,7 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* Version: 1.1.1
+* Version: 1.2
 *
 */
 
@@ -28,14 +28,16 @@
 bool RunExternal::runKMCTools(int cutoff, const std::string& inputFileName, const std::string& outputFileName) {
     std::string args;
 
-    args += "reduce";
+    args += "transform";
     args += " " + inputFileName;
+	args += " reduce";
+
+	args += " " + outputFileName;
 
     std::ostringstream sstream;
     sstream << cutoff;
     args += " -ci" + sstream.str();
 
-    args += " " + outputFileName;
 
     unsigned long result;
     if (!runCommand(KMC_TOOLS_EXECUTABLE_NAME, args, result) || result != 0) {

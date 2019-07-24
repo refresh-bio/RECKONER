@@ -4,8 +4,8 @@
   
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #include "stdafx.h"
@@ -31,13 +31,13 @@ CBigKmerBinWriter::CBigKmerBinWriter(CKMCParams& Params, CKMCQueues& Queues)
 void CBigKmerBinWriter::Process()
 {	
 	int32 curr_bin_id = -1;
-	uchar* suff_buff = NULL;
+	uchar* suff_buff = nullptr;
 	uint64 suff_buff_size;
-	uint64* lut = NULL;
+	uint64* lut = nullptr;
 	uint64 lut_size = 0;
 	bool last_one_in_sub_bin;
 	bool first_in_sub_bin = true;
-	FILE* file = NULL;
+	FILE* file = nullptr;
 	string name;
 	uint64 file_size = 0;
 	while (bbspq->pop(bin_id, sub_bin_id, suff_buff, suff_buff_size, lut, lut_size, last_one_in_sub_bin))
@@ -55,7 +55,7 @@ void CBigKmerBinWriter::Process()
 			file = fopen(name.c_str(), "wb+");
 			if (!file)
 			{
-				cout << "Can not open file : " << name;
+				cerr << "Error: can not open file : " << name;
 				exit(1);
 			}
 			setbuf(file, nullptr);
@@ -67,7 +67,7 @@ void CBigKmerBinWriter::Process()
 			disk_logger->log_write(suff_buff_size);
 			if (fwrite(suff_buff, 1, suff_buff_size, file) != suff_buff_size)
 			{
-				cout << "Error while writing to file : " << name;
+				cerr << "Error while writing to file : " << name;
 				exit(1);
 			}
 			file_size += suff_buff_size;
@@ -79,7 +79,7 @@ void CBigKmerBinWriter::Process()
 			disk_logger->log_write(lut_size * sizeof(uint64));
 			if (fwrite(lut, sizeof(uint64), lut_size, file) != lut_size)
 			{
-				cout << "Error while writing to file : " << name;
+				cerr << "Error while writing to file : " << name;
 				exit(1);
 			}
 			file_size += lut_size * sizeof(uint64);

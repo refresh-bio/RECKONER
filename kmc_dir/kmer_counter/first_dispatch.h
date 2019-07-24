@@ -4,8 +4,8 @@ The homepage of the KMC project is http://sun.aei.polsl.pl/kmc
 
 Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
 
-Version: 3.0.0
-Date   : 2017-01-28
+Version: 3.1.1
+Date   : 2019-05-19
 */
 #ifndef _FIRST_DISPATCH_H
 #define _FIRST_DISPATCH_H
@@ -22,7 +22,6 @@ Date   : 2017-01-28
 #include "timer.h"
 #include <thread>
 #include <array>
-#include "asmlib_wrapper.h"
 #include "intr_copy.h"
 
 
@@ -100,9 +99,9 @@ public:
 };
 
 template <typename KMER_T, typename COUNTER_TYPE>
-void pierwsze_kolko_etap1(uint32_t th_id, KMER_T *kmers, uint64 n_recs, uint32_t n_threads,
+void pierwsze_kolko_etap1(uint32_t /*th_id*/, KMER_T *kmers, uint64 /*n_recs*/, uint32_t /*n_threads*/,
 	//	uint64_t per_thread, std::vector<ALIGN_ARRAY COUNTER_TYPE[256]> &histos,
-	uint64_t per_thread, std::vector<std::array<COUNTER_TYPE, 256>> &histos,
+	uint64_t /*per_thread*/, std::vector<std::array<COUNTER_TYPE, 256>> &histos,
 	uint32 byte, CRangeQueue& rq)
 	//(std::thread([th_id, kmers, n_recs, n_threads, per_thread, &histos, byte]
 {
@@ -177,13 +176,6 @@ void pierwsze_kolko_etap1(uint32_t th_id, KMER_T *kmers, uint64 n_recs, uint32_t
 		}
 
 	}
-	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	/*	if (byte == 15) {
-	radix_mid_timer.stopTimer();
-	//std::cout << "MidTime 1st step: " << radix_mid_timer.getElapsedTime() << " for thread " << th_id << "\n";
-	}*/
-	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 #ifdef MEASURE_TIMES
 	tw.stopTimer();
 
@@ -195,8 +187,8 @@ void pierwsze_kolko_etap1(uint32_t th_id, KMER_T *kmers, uint64 n_recs, uint32_t
 
 //----------------------------------------------------------------------
 template <typename KMER_T, typename COUNTER_TYPE>
-void pierwsze_kolko_etap2(uint32_t th_id, KMER_T *kmers, KMER_T* tmp,
-	uint64 n_recs, uint32_t n_threads, uint64_t per_thread, uint32 byte,
+void pierwsze_kolko_etap2(uint32_t /*th_id*/, KMER_T *kmers, KMER_T* tmp,
+	uint64 /*n_recs*/, uint32_t /*n_threads*/, uint64_t /*per_thread*/, uint32 byte,
 	//	std::vector<ALIGN_ARRAY COUNTER_TYPE[256]> &histos,
 	std::vector<std::array<COUNTER_TYPE, 256>> &histos,
 	std::vector<uchar*> &_raw_buffers,
@@ -275,7 +267,7 @@ void pierwsze_kolko_etap2(uint32_t th_id, KMER_T *kmers, KMER_T* tmp,
 		//	myHisto[byteValue]++;
 
 		//	if (index_x == (BUFFER_WIDTH - 1))
-		//		A_memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
+		//		memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
 
 		//	ptr += sizeof(KMER_T);
 		//} //end_for
@@ -288,7 +280,7 @@ void pierwsze_kolko_etap2(uint32_t th_id, KMER_T *kmers, KMER_T* tmp,
 			Buffer[byteValue * BUFFER_WIDTH + index_x] = src[(n % 4) - 3];
 			myHisto[byteValue]++;
 			if (index_x == (BUFFER_WIDTH - 1))
-				//				A_memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
+				//				memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
 				IntrCopy128<BUFFER_WIDTH_IN_128BIT_WORDS, BUFFER_16B_ALIGNED>::Copy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH]);
 
 			ptr += sizeof(KMER_T);
@@ -298,7 +290,7 @@ void pierwsze_kolko_etap2(uint32_t th_id, KMER_T *kmers, KMER_T* tmp,
 			Buffer[byteValue * BUFFER_WIDTH + index_x] = src[(n % 4) - 2];
 			myHisto[byteValue]++;
 			if (index_x == (BUFFER_WIDTH - 1))
-				//				A_memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
+				//				memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
 				IntrCopy128<BUFFER_WIDTH_IN_128BIT_WORDS, BUFFER_16B_ALIGNED>::Copy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH]);
 
 			ptr += sizeof(KMER_T);
@@ -308,7 +300,7 @@ void pierwsze_kolko_etap2(uint32_t th_id, KMER_T *kmers, KMER_T* tmp,
 			Buffer[byteValue * BUFFER_WIDTH + index_x] = src[(n % 4) - 1];
 			myHisto[byteValue]++;
 			if (index_x == (BUFFER_WIDTH - 1))
-				//				A_memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
+				//				memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
 				IntrCopy128<BUFFER_WIDTH_IN_128BIT_WORDS, BUFFER_16B_ALIGNED>::Copy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH]);
 
 			ptr += sizeof(KMER_T);
@@ -321,7 +313,7 @@ void pierwsze_kolko_etap2(uint32_t th_id, KMER_T *kmers, KMER_T* tmp,
 			Buffer[byteValue * BUFFER_WIDTH + index_x] = src[i];
 			myHisto[byteValue]++;
 			if (index_x == (BUFFER_WIDTH - 1))
-				//				A_memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
+				//				memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
 				IntrCopy128<BUFFER_WIDTH_IN_128BIT_WORDS, BUFFER_16B_ALIGNED>::Copy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH]);
 
 			ptr += sizeof(KMER_T);
@@ -331,7 +323,7 @@ void pierwsze_kolko_etap2(uint32_t th_id, KMER_T *kmers, KMER_T* tmp,
 			Buffer[byteValue * BUFFER_WIDTH + index_x] = src[i + 1];
 			myHisto[byteValue]++;
 			if (index_x == (BUFFER_WIDTH - 1))
-				//				A_memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
+				//				memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
 				IntrCopy128<BUFFER_WIDTH_IN_128BIT_WORDS, BUFFER_16B_ALIGNED>::Copy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH]);
 
 			ptr += sizeof(KMER_T);
@@ -341,7 +333,7 @@ void pierwsze_kolko_etap2(uint32_t th_id, KMER_T *kmers, KMER_T* tmp,
 			Buffer[byteValue * BUFFER_WIDTH + index_x] = src[i + 2];
 			myHisto[byteValue]++;
 			if (index_x == (BUFFER_WIDTH - 1))
-				//				A_memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
+				//				memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
 				IntrCopy128<BUFFER_WIDTH_IN_128BIT_WORDS, BUFFER_16B_ALIGNED>::Copy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH]);
 
 			ptr += sizeof(KMER_T);
@@ -351,7 +343,7 @@ void pierwsze_kolko_etap2(uint32_t th_id, KMER_T *kmers, KMER_T* tmp,
 			Buffer[byteValue * BUFFER_WIDTH + index_x] = src[i + 3];
 			myHisto[byteValue]++;
 			if (index_x == (BUFFER_WIDTH - 1))
-				//				A_memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
+				//				memcpy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH], BUFFER_WIDTH *sizeof(KMER_T));
 				IntrCopy128<BUFFER_WIDTH_IN_128BIT_WORDS, BUFFER_16B_ALIGNED>::Copy(&tmp[myHisto[byteValue] - (BUFFER_WIDTH)], &Buffer[byteValue * BUFFER_WIDTH]);
 
 			ptr += sizeof(KMER_T);
@@ -367,18 +359,11 @@ void pierwsze_kolko_etap2(uint32_t th_id, KMER_T *kmers, KMER_T* tmp,
 	times_byte_total[byte] += (uint64_t)(tw.getElapsedTime() * 1000000000.0);
 	times_satish_stages[byte][1] += (uint64_t)(tw.getElapsedTime() * 1000000000.0);
 #endif
-
-	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	/*	if (byte == 15) {
-	radix_mid_timer.stopTimer();
-	//std::cout << "MidTime 2st step: " << radix_mid_timer.getElapsedTime() << " for thread " << th_id << "\n";
-	}*/
-	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 }
 //-----------------------------------------------------------
 template <typename KMER_T, typename COUNTER_TYPE>
-void pierwsze_kolko_etap3(uint32_t th_id, KMER_T *kmers, KMER_T* tmp,
-	uint64 n_recs, uint32_t n_threads, uint64_t per_thread, uint32 byte,
+void pierwsze_kolko_etap3(uint32_t /*th_id*/, KMER_T */*kmers*/, KMER_T* tmp,
+	uint64 /*n_recs*/, uint32_t /*n_threads*/, uint64_t /*per_thread*/, uint32 /*byte*/,
 	//	std::vector<ALIGN_ARRAY COUNTER_TYPE[256]> &histos,
 	std::vector<std::array<COUNTER_TYPE, 256>> &histos,
 	std::vector<uchar*> &_raw_buffers,
@@ -438,19 +423,12 @@ void pierwsze_kolko_etap3(uint32_t th_id, KMER_T *kmers, KMER_T* tmp,
 				elemInBuffer = index_stop - index_start;
 
 			if (elemInBuffer != 0)
-				//				A_memcpy(&tmp[myHisto[private_i] - elemInBuffer], &Buffer[private_i * BUFFER_WIDTH + (myHisto[private_i] - elemInBuffer) % BUFFER_WIDTH], (elemInBuffer)*sizeof(KMER_T));
+				//				memcpy(&tmp[myHisto[private_i] - elemInBuffer], &Buffer[private_i * BUFFER_WIDTH + (myHisto[private_i] - elemInBuffer) % BUFFER_WIDTH], (elemInBuffer)*sizeof(KMER_T));
 				IntrCopy64fun(&tmp[myHisto[private_i] - elemInBuffer],
 					&Buffer[private_i * BUFFER_WIDTH + (myHisto[private_i] - elemInBuffer) % BUFFER_WIDTH], elemInBuffer * sizeof(KMER_T) / 8);
 		}
 		pmm_radix_buf->free(raw_buffer);
 	}
-
-	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-	/*	if (byte == 15) {
-	radix_mid_timer.stopTimer();
-	//std::cout << "MidTime 3rd step: " << radix_mid_timer.getElapsedTime() << " for thread " << th_id << "\n";
-	}*/
-	//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #ifdef MEASURE_TIMES
 	tw.stopTimer();
 

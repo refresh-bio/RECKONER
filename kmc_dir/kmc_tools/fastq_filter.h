@@ -4,8 +4,8 @@ The homepage of the KMC project is http://sun.aei.polsl.pl/kmc
 
 Authors: Marek Kokot
 
-Version: 3.0.0
-Date   : 2017-01-28
+Version: 3.1.1
+Date   : 2019-05-19
 */
 
 #ifndef _FASTQ_FILTER_H
@@ -21,11 +21,12 @@ Date   : 2017-01-28
 //************************************************************************************************************
 class CFastqFilter
 {
+private:
+	CFilteringParams::FilterMode mode;
 	CPartQueue *input_part_queue, *filtered_part_queue;
 	CMemoryPool *pmm_fastq_reader;
 	CMemoryPool *pmm_fastq_filter;
 	CFilteringParams::file_type input_file_type, output_file_type;
-	bool trim;
 	CKMCFile& kmc_api;
 	uint64 output_part_size;
 
@@ -66,6 +67,7 @@ class CFastqFilter
 	bool NextSeqFasta();
 	bool FilterRead();
 	bool FilterReadTrim();
+	void HardMask();
 public:
 	CFastqFilter(CFilteringParams& Params, CFilteringQueues& Queues, CKMCFile& kmc_api);
 	void Process();
@@ -81,7 +83,9 @@ private: //Helpers classes for ProcessImpl
 	class TrimFastqToFastaHelper;
 	class TrimFastaToFastaHelper;
 
-
+	class HardMaskFastqToFastqHelper;
+	class HardMaskFastqToFastaHelper;
+	class HardMaskFastaToFastaHelper;
 
 };
 

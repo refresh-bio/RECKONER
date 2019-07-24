@@ -4,7 +4,7 @@
   
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
   
-  Version: 3.0.0
+  Version: 3.1.1
   Date   : 2017-01-28
 */
 
@@ -24,20 +24,6 @@ struct CSmallKBuf
 	}
 };
 
-template<>
-struct CSmallKBuf<float>
-{
-	float* buf;
-	void Store(uint64 index, uchar* _buf, uint32& buf_pos, uint64 counter_size)//counter_size should be always 4 here
-	{
-		uint32 c;
-		memcpy(&c, &buf[index], 4);
-		for (int32 j = 0; j < 4; ++j)
-			_buf[buf_pos++] = (c >> (j * 8)) & 0xFF;		
-	}
-};
-
-
-
-
 #endif
+
+// ***** EOF

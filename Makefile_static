@@ -6,7 +6,7 @@ CC=g++
 all: kmc_main reckoner
 
 kmc_main:
-	cd $(KMC_DIR) && $(MAKE) --file=makefile_static DISABLE_ASMLIB=true CC=$(CC)
+	cd $(KMC_DIR) && $(MAKE) --file=makefile_static CC=$(CC)
 	-cp $(KMC_DIR)bin/kmc $(BIN_DIR)
 	-cp $(KMC_DIR)bin/kmc_tools $(BIN_DIR)
 

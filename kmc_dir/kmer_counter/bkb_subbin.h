@@ -4,8 +4,8 @@
   
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #ifndef _BKB_SUBBIN_H
@@ -14,7 +14,7 @@
 //************************************************************************************************************
 // CSubBin - sorted k-mers (part of some bin), used in strict memory mode 
 //************************************************************************************************************
-template<typename KMER_T, unsigned SIZE>
+template<unsigned SIZE>
 class CSubBin
 {
 	CDiskLogger* disk_logger;
@@ -31,7 +31,7 @@ class CSubBin
 	uint64 size;
 	void read_next_lut_part();
 public:
-	bool get_min(KMER_T& kmer, uint32& count);
+	bool get_min(CKmer<SIZE>& kmer, uint32& count);
 	CSubBin(CDiskLogger* _disk_logger)
 	{
 		lut_size = 0;
@@ -41,8 +41,8 @@ public:
 };
 
 //--------------------------------------------------------------------------
-template<typename KMER_T, unsigned SIZE>
-void CSubBin<KMER_T, SIZE>::read_next_lut_part()
+template<unsigned SIZE>
+void CSubBin<SIZE>::read_next_lut_part()
 {
 	uint32 to_read = MIN(lut_size - lut_offset, lut_buff_recs);
 	lut_offset += lut_buff_recs;
@@ -52,7 +52,7 @@ void CSubBin<KMER_T, SIZE>::read_next_lut_part()
 		my_fseek(file, lut_start_pos_in_file + (lut_offset - lut_buff_recs) * sizeof(uint64), SEEK_SET);
 		if (fread(lut, sizeof(uint64), to_read, file) != to_read)
 		{
-			cout << "Error while reading file : " << name << "\n";
+			cerr << "Error while reading file : " << name << "\n";
 			exit(1);
 		}
 		my_fseek(file, prev_pos, SEEK_SET);
@@ -60,8 +60,8 @@ void CSubBin<KMER_T, SIZE>::read_next_lut_part()
 }
 
 //--------------------------------------------------------------------------
-template<typename KMER_T, unsigned SIZE>
-bool CSubBin<KMER_T, SIZE>::get_min(KMER_T& kmer, uint32& count)
+template<unsigned SIZE>
+bool CSubBin<SIZE>::get_min(CKmer<SIZE>& kmer, uint32& count)
 {
 	while (true)
 	{
@@ -114,8 +114,8 @@ bool CSubBin<KMER_T, SIZE>::get_min(KMER_T& kmer, uint32& count)
 }
 
 //--------------------------------------------------------------------------
-template<typename KMER_T, unsigned SIZE>
-void CSubBin<KMER_T, SIZE>::init(FILE* _file, uint64 _size, uint32 _lut_prefix_len, uint64 _n_kmers, string _name, uint32 _kmer_len, uchar* _lut_buff, uint32 _lut_buff_size, uchar* _suff_buff, uint64 _suff_buff_size)
+template<unsigned SIZE>
+void CSubBin<SIZE>::init(FILE* _file, uint64 _size, uint32 _lut_prefix_len, uint64 _n_kmers, string _name, uint32 _kmer_len, uchar* _lut_buff, uint32 _lut_buff_size, uchar* _suff_buff, uint64 _suff_buff_size)
 {
 	size = _size;
 	lut = (uint64*)_lut_buff;

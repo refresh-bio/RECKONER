@@ -4,8 +4,8 @@
   
   Authors: Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #include "stdafx.h"
@@ -75,12 +75,23 @@ void CPercentProgress::Complete(uint32 id)
 /*****************************************************************************************************************************/
 void CPercentProgress::display()
 {
-	if (hide_progress)
+	if (hide_progress || ignore_rest)
 		return;
-	std::cout << "\r";
+	std::cerr << "\r";
+	bool finished = true;
 	for (auto& item : items)
-		std::cout << item.name << ": " << item.cur_percent << "% ";
-	std::cout.flush();
+	{
+		std::cerr << item.name << ": " << item.cur_percent << "% ";
+		if (item.cur_percent != 100)
+			finished = false;
+	}
+
+	if (finished)
+	{
+		cerr << "\n";
+		ignore_rest = true;
+	}
+	std::cerr.flush();
 }
 
 /*****************************************************************************************************************************/

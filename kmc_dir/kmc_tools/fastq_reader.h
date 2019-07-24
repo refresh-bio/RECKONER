@@ -4,8 +4,8 @@
   
   Authors: Marek Kokot
   
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
 */
 
 #ifndef _FASTQ_READER_H
@@ -53,6 +53,9 @@ class CFastqReader {
 
 	bool SkipNextEOL(uchar *part, int64 &pos, int64 max_pos);
 
+	void GetFullLineFromEnd(int64& line_sart, int64& line_end, uchar* buff, int64& pos);
+	
+	
 	bool IsEof();
 
 public:

@@ -4,8 +4,8 @@
 
   Authors: Sebastian Deorowicz, Agnieszka Debudaj-Grabysz, Marek Kokot
 
-  Version: 3.0.0
-  Date   : 2017-01-28
+  Version: 3.1.1
+  Date   : 2019-05-19
  */
 
 #ifndef _KMC_FILE_H
@@ -33,7 +33,8 @@ class CKMCFile
 {
 	enum open_mode {closed, opened_for_RA, opened_for_listing};
 	open_mode is_opened;
-
+	uint64 suf_file_left_to_read = 0; // number of bytes that are yet to read in a listing mode
+	uint64 suffix_file_total_to_read = 0; // number of bytes that constitutes records in kmc_suf file
 	bool end_of_file;
 
 	FILE *file_pre;
