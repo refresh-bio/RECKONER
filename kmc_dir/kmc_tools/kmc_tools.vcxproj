@@ -145,6 +145,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <Profile>true</Profile>
       <AdditionalDependencies />
+      <OutputFile>$(SolutionDir)bin\$(TargetName)$(TargetExt)</OutputFile>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>

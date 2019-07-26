@@ -86,7 +86,7 @@
 #define PART_SIZE                   (8 << 20)
 #define PART_BUFFERS_PER_THREAD     2
 #if defined(WIN32) || defined(_WIN32) // Windows
-#define KMC_EXECUTABLE_NAME "kmc.exe"
+#define KMC_EXECUTABLE_NAME "kmer_counter.exe"
 #define KMC_TOOLS_EXECUTABLE_NAME "kmc_tools.exe"
 #define DIRECTORY_SEPARATOR "\\"
 #else // Linux
