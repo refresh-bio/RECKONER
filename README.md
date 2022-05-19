@@ -59,6 +59,10 @@ Examples:
 ```
 
 ### Miscellaneous
-+ Homepage: http://sun.aei.polsl.pl/REFRESH/
 + Contact: maciej.dlugosz@polsl.pl
 + RECKONER is distributed under license GPL 3.
+
+## Citing
+<a href="https://doi.org/10.1093/bioinformatics/btw746">
+Długosz, M., Deorowicz, S. (2017) RECKONER: read error corrector based on KMC, Bioinformatics, 33:1086&ndash;1089.
+</a>
