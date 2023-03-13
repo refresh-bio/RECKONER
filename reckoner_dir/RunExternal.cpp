@@ -4,7 +4,7 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* Version: 1.2
+* Version: 2.0
 *
 */
 
@@ -30,9 +30,9 @@ bool RunExternal::runKMCTools(int cutoff, const std::string& inputFileName, cons
 
     args += "transform";
     args += " " + inputFileName;
-	args += " reduce";
+    args += " reduce";
 
-	args += " " + outputFileName;
+    args += " " + outputFileName;
 
     std::ostringstream sstream;
     sstream << cutoff;
@@ -41,25 +41,22 @@ bool RunExternal::runKMCTools(int cutoff, const std::string& inputFileName, cons
 
     unsigned long result;
     if (!runCommand(KMC_TOOLS_EXECUTABLE_NAME, args, result) || result != 0) {
-        std::cerr << "ERROR: cannot run kmc_tools." << std::endl;
-        Log::get_stream() << "ERROR: cannot run kmc_tools." << std::endl;
+        c_err << "ERROR: cannot run kmc_tools." << std::endl;
         return false;
     }
 
     return true;
 }
 
-bool RunExternal::runKMC(int kmerLength, const std::vector<std::string>& inputFilesNames, const std::string& outputFileName, const std::string& listFileName, const std::string& tempName) {
+bool RunExternal::runKMC(int kmerLength, const std::vector<std::string>& inputFilesNames, const std::string& outputFileName, const std::string& listFileName, const std::string& tempName, int minCount) {
     if (!createDirectory(tempName)) {
-        std::cerr << "ERROR: cannot create KMC temp directory." << std::endl;
-        Log::get_stream() << "ERROR: cannot create KMC temp directory." << std::endl;
+        c_err << "ERROR: cannot create KMC temp directory." << std::endl;
         return false;
     }
 
     std::ofstream listFileStream(listFileName);
     if (!listFileStream.is_open()) {
-        std::cerr << "ERROR: cannot create list of KMC input files." << std::endl;
-        Log::get_stream() << "ERROR: cannot create list of KMC input files." << std::endl;
+        c_err << "ERROR: cannot create list of KMC input files." << std::endl;
         return false;
     }
 
@@ -82,15 +79,21 @@ bool RunExternal::runKMC(int kmerLength, const std::vector<std::string>& inputFi
     sstream << nThreads;
     args += " -t" + sstream.str();
 
-    args += " -ci2";
+    sstream.str("");
+    sstream << minCount;
+    args += " -ci" + sstream.str();
+
+    if (KMCOnlyRam) {
+        args += " -r";
+    }
+
     args += " @" + listFileName;
     args += " " + outputFileName;
     args += " " + tempName;
 
     unsigned long result;
     if (!runCommand(KMC_EXECUTABLE_NAME, args, result) || result != 0) {
-        std::cerr << "ERROR: cannot run KMC." << std::endl;
-        Log::get_stream() << "ERROR: cannot run KMC." << std::endl;
+        c_err << "ERROR: cannot run KMC." << std::endl;
         return false;
     }
 
@@ -101,15 +104,13 @@ bool RunExternal::runKMC(int kmerLength, const std::vector<std::string>& inputFi
 
 bool RunExternal::runKMCToBuffer(std::size_t kmerLength, const std::vector<std::string>& inputFilesNames, const std::string& outputFileName, const std::string& listFileName, const std::string& tempName, char* buffer, const int bufferSize) {
     if (!createDirectory(tempName)) {
-        std::cerr << "ERROR: cannot create KMC temp directory." << std::endl;
-        Log::get_stream() << "ERROR: cannot create KMC temp directory." << std::endl;
+        c_err << "ERROR: cannot create KMC temp directory." << std::endl;
         return false;
     }
 
     std::ofstream listFileStream(listFileName);
     if (!listFileStream.is_open()) {
-        std::cerr << "ERROR: cannot create list of KMC input files." << std::endl;
-        Log::get_stream() << "ERROR: cannot create list of KMC input files." << std::endl;
+        c_err << "ERROR: cannot create list of KMC input files." << std::endl;
         return false;
     }
 
@@ -133,14 +134,18 @@ bool RunExternal::runKMCToBuffer(std::size_t kmerLength, const std::vector<std::
     args += " -t" + sstream.str();
 
     args += " -ci2";
+
+    if (KMCOnlyRam) {
+        args += " -r";
+    }
+
     args += " @" + listFileName;
     args += " " + outputFileName;
     args += " " + tempName;
 
     unsigned long result;
     if (!runCommand(KMC_EXECUTABLE_NAME, args, result, buffer, bufferSize) || result != 0) {
-        std::cerr << "ERROR: cannot run KMC." << std::endl;
-        Log::get_stream() << "ERROR: cannot run KMC." << std::endl;
+        c_err << "ERROR: cannot run KMC." << std::endl;
         return false;
     }
 
@@ -156,6 +161,8 @@ void RunExternal::removeKMCFiles(const std::string& fileName) {
 
 #if defined(WIN32) || defined(_WIN32) //Windows
 
+#pragma warning(push)
+#pragma warning(disable: 4996)
 bool RunExternal::runCommand(std::string command, const std::string& args, unsigned long& processResult, char* buffer /*= NULL*/, const int bufferSize /*= 0*/) {
     // Get directory path
     const DWORD fileNameBufferSize = 261;
@@ -236,6 +243,7 @@ bool RunExternal::runCommand(std::string command, const std::string& args, unsig
         return true;
     }
 }
+#pragma warning(pop)
 
 bool RunExternal::createPipe(HANDLE& pipeReadHandle, HANDLE& pipeWriteHandle) {
     SECURITY_ATTRIBUTES securityAttributes;

@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.2
+ * Version: 2.0
  * 
  */
 
@@ -13,6 +13,7 @@
 
 #include "parse_args.hpp"
 #include "time.hpp"
+#include "Log.h"
 
 
 
@@ -21,6 +22,9 @@
 //----------------------------------------------------------------------
 
 class C_check_read {
+    C_log c_log;
+    C_log c_err;
+
 public:
     // variables
     std::size_t quality_score_offset;
@@ -28,11 +32,13 @@ public:
     // constructor
 
     C_check_read() :
+        c_log(std::cout),
+        c_err(std::cerr),
         quality_score_offset(PHRED33) {
     };
 
     // functions
-    void check_read_file(const C_arg& c_inst_args, const std::string& read_file_name, const FileReader::FileType read_file_type);
+    void check_read_file(const ReadFileData& read_file_data);
 };
 
 

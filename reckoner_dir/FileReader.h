@@ -4,16 +4,18 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.2
+ * Version: 2.0
  * 
  */
 
 #ifndef _FILE_READER_H
 #define _FILE_READER_H
 
+#include "Log.h"
 #include <zlib.h>
 #include <cstdlib>
 #include <string>
+#include <iostream>
 
 
 
@@ -21,6 +23,8 @@
 #define GZIP_BUFFER_SIZE (8 << 20)
 
 class FileReader {
+    C_log c_err;
+
 public:
 
     enum FileType {
@@ -47,7 +51,7 @@ public:
     long seekPos(long pos);
     bool eof() const;
 
-    FileReader() : file(NULL), gz_file(NULL), fileType(NOT_DEFINED), leaveSymbols(0), currentPos(0), fileBytesRead(0), eofReached(false), windowsNewLine(false) {
+    FileReader() : c_err(std::cerr), file(NULL), gz_file(NULL), fileType(NOT_DEFINED), leaveSymbols(0), currentPos(0), fileBytesRead(0), eofReached(false), windowsNewLine(false) {
         buffer = new char[BUFFER_SIZE + 1];
     }
 

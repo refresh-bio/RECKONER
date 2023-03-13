@@ -42,13 +42,11 @@
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
     <LibraryPath>$(LibraryPath)</LibraryPath>
-    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
     <TargetName>reckoner</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
-    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
     <TargetName>reckoner</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -68,8 +66,10 @@
       <IgnoreSpecificDefaultLibraries>libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <AdditionalLibraryDirectories>libs</AdditionalLibraryDirectories>
       <AdditionalDependencies>zlibstat.lib;Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>$(SolutionDir)bin\Debug\$(TargetName)$(TargetExt)</OutputFile>
     </Link>
+    <PostBuildEvent>
+      <Command>(if not exist "$(SolutionDir)bin\$(Configuration)" mkdir "$(SolutionDir)bin\$(Configuration)") &amp;&amp; copy /Y "$(OutDir)$(TargetName)$(TargetExt)" "$(SolutionDir)bin\$(Configuration)\$(TargetName)$(TargetExt)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -90,8 +90,10 @@
       <IgnoreSpecificDefaultLibraries>libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <AdditionalLibraryDirectories>libs</AdditionalLibraryDirectories>
       <AdditionalDependencies>zlibstat.lib;Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>$(SolutionDir)bin\$(TargetName)$(TargetExt)</OutputFile>
     </Link>
+    <PostBuildEvent>
+      <Command>(if not exist "$(SolutionDir)bin" mkdir "$(SolutionDir)bin") &amp;&amp; copy /Y "$(OutDir)$(TargetName)$(TargetExt)" "$(SolutionDir)bin\$(TargetName)$(TargetExt)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="check_inputs.hpp" />
@@ -106,6 +108,7 @@
     <ClInclude Include="parse_args.hpp" />
     <ClInclude Include="PerformTasks.h" />
     <ClInclude Include="PrepareKMCDb.h" />
+    <ClInclude Include="QueryKMCDb.h" />
     <ClInclude Include="RunExternal.h" />
     <ClInclude Include="time.hpp" />
   </ItemGroup>

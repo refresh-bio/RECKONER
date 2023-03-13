@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.2
+ * Version: 2.0
  * 
  */
 
@@ -20,6 +20,10 @@
 
 
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#endif
 class Timer {
 private:
     std::time_t startTime;
@@ -50,6 +54,9 @@ public:
         return startTime != 0 && stopTime != 0;
     }
 };
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 
 
@@ -70,6 +77,9 @@ public:
 
     // count k-mers
     Timer kmer_count;
+
+    // count long k-mers
+    Timer long_kmer_count;
 
     // determine cutoff threshold
     Timer determine_cutoff_threshold;

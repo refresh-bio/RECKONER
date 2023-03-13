@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.2
+ * Version: 2.0
  * 
  */
 
@@ -21,15 +21,12 @@
 // Reads and analyzes entire input file.
 //----------------------------------------------------------------------
 
-void C_check_read::check_read_file(const C_arg& c_inst_args, const std::string& read_file_name, const FileReader::FileType read_file_type) {
-    std::ofstream& f_log = Log::get_stream();
-
+void C_check_read::check_read_file(const ReadFileData& read_file_data) {
     FileReader f_read;
-    f_read.setFileName(read_file_name, read_file_type);
+    f_read.setFileName(read_file_data.input_name, read_file_data.type);
 
     if (!f_read.openFile(FileReader::READ)) {
-        std::cerr << "ERROR: Cannot open " << read_file_name << " for checking reads." << std::endl;
-        f_log << "ERROR: Cannot open " << read_file_name << " for checking reads." << std::endl;
+        c_err << "ERROR: Cannot open " << read_file_data.input_name << " for checking reads." << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -59,6 +56,5 @@ void C_check_read::check_read_file(const C_arg& c_inst_args, const std::string& 
             }
         }
     }
-    std::cout << "     Quality score offset          : " << quality_score_offset << std::endl;
-    f_log << "     Quality score offset          : " << quality_score_offset << std::endl;
+    c_log << "     Quality score offset          : " << quality_score_offset << std::endl;
 }

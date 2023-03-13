@@ -12,7 +12,7 @@ reckoner: $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) $(KMC_DIR_IN)/kmc_api/*.o $(LIBS) -o $@
 
 $(OBJS): %.o : %.cpp
-	$(CC) $(CFLAGS) $(OPT) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	-rm -f reckoner $(OBJS)

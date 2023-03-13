@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.2
+ * Version: 2.0
  * 
  */
 
@@ -17,6 +17,7 @@
 #include "PrepareKMCDb.h"
 #include "DetermineParameters.hpp"
 #include <kmc_api/kmc_file.h>
+#include <algorithm>
 
 
 
@@ -25,24 +26,19 @@
 //----------------------------------------------------------------------
 
 void PerformTasks::perform_check_read() {
-    std::cout << std::endl;
-    std::cout << "##################################################" << std::endl;
-    std::cout << "CHECKING READS" << std::endl;
-    std::cout << "##################################################" << std::endl;
-    f_log << std::endl;
-    f_log << "##################################################" << std::endl;
-    f_log << "CHECKING READS" << std::endl;
-    f_log << "##################################################" << std::endl;
+    c_log << std::endl;
+    c_log << "##################################################" << std::endl;
+    c_log << "CHECKING READS" << std::endl;
+    c_log << "##################################################" << std::endl;
 
-    for (std::size_t it = 0; it < c_inst_args.read_files_names.size(); ++it) {
-        std::cout << c_inst_args.read_files_names[it] << std::endl;
-        f_log << c_inst_args.read_files_names[it] << std::endl;
+    for (std::size_t it = 0; it < c_inst_args.read_files_data.size(); ++it) {
+        c_log << c_inst_args.read_files_data[it].input_name << std::endl;
 
         Timer check_read_file_time;
         check_read_file_time.startTimer();
 
         C_check_read check_read;
-        check_read.check_read_file(c_inst_args, c_inst_args.read_files_names[it], c_inst_args.read_files_types[it]);
+        check_read.check_read_file(c_inst_args.read_files_data[it]);
         check_inputs.push_back(check_read);
 
         check_read_file_time.stopTimer();
@@ -55,33 +51,42 @@ void PerformTasks::perform_check_read() {
 //----------------------------------------------------------------------
 
 void PerformTasks::perform_parameter_determination() {
-    if (!c_inst_args.is_kmer_length_user_defined) {
-        std::cout << std::endl;
-        std::cout << "##################################################" << std::endl;
-        std::cout << "DETERMINING PARAMETERS" << std::endl;
-        std::cout << "##################################################" << std::endl;
-        f_log << std::endl;
-        f_log << "##################################################" << std::endl;
-        f_log << "DETERMINING PARAMETERS" << std::endl;
-        f_log << "##################################################" << std::endl;
-
-        Timer determine_parameters_time;
-        determine_parameters_time.startTimer();
-
-        DetermineParameters determineParameters(c_inst_args, check_inputs);
-
-        if (!c_inst_args.is_genome_size_user_defined) {
-            c_inst_args.genome_size = determineParameters.determineGenomeSize();
-            std::cout << "Estimated genome size: " << c_inst_args.genome_size << std::endl;
-            f_log << "Estimated genome size: " << c_inst_args.genome_size << std::endl;
-        }
-        c_inst_args.kmer_length = determineParameters.determineKmerLength();
-        std::cout << "Determined k-mer length: " << c_inst_args.kmer_length << std::endl;
-        f_log << "Determined k-mer length: " << c_inst_args.kmer_length << std::endl;
-
-        determine_parameters_time.stopTimer();
-        c_inst_time.determine_parameters = determine_parameters_time;
+    if (c_inst_args.is_kmer_length_user_defined) {
+        return;
     }
+
+    c_log << std::endl;
+    c_log << "##################################################" << std::endl;
+    c_log << "DETERMINING PARAMETERS" << std::endl;
+    c_log << "##################################################" << std::endl;
+
+    Timer determine_parameters_time;
+    determine_parameters_time.startTimer();
+
+    DetermineParameters determineParameters(c_inst_args, check_inputs);
+
+    if (!c_inst_args.is_genome_size_user_defined) {
+        c_inst_args.genome_size = determineParameters.determineGenomeSize();
+        c_log << "Estimated genome size: " << c_inst_args.genome_size << std::endl;
+    }
+    
+    c_inst_args.kmer_length = determineParameters.determineKmerLength();
+    if (c_inst_args.use_long_kmer) {
+        c_inst_args.long_kmer_length = static_cast<std::size_t>(c_inst_args.long_kmer_ratio * c_inst_args.kmer_length);
+    }
+    else {
+        c_inst_args.long_kmer_length = 0;
+    }
+
+    c_inst_args.kmer_length = determineParameters.determineKmerLength();
+    c_log << "Determined k-mer length: " << c_inst_args.kmer_length << std::endl;
+
+    if (c_inst_args.use_long_kmer) {
+        c_log << "Determined long k-mer length: " << c_inst_args.long_kmer_length << std::endl;
+    }
+
+    determine_parameters_time.stopTimer();
+    c_inst_time.determine_parameters = determine_parameters_time;
 }
 
 //----------------------------------------------------------------------
@@ -89,16 +94,74 @@ void PerformTasks::perform_parameter_determination() {
 //----------------------------------------------------------------------
 
 void PerformTasks::perform_kmcdb_creation() {
-    PrepareKMCDb prepareKMCDb(c_inst_args);
+    c_log << std::endl;
+    c_log << "##################################################" << std::endl;
+    c_log << "K - MER COUNTING" << std::endl;
+    c_log << "##################################################" << std::endl;
 
-    std::cout << std::endl;
-    std::cout << "##################################################" << std::endl;
-    std::cout << "K - MER COUNTING" << std::endl;
-    std::cout << "##################################################" << std::endl;
-    f_log << std::endl;
-    f_log << "##################################################" << std::endl;
-    f_log << "K - MER COUNTING" << std::endl;
-    f_log << "##################################################" << std::endl;
+
+
+    if (c_inst_args.reuse_kmc_db) {
+        bool db_exists = false;
+        bool db_to_reuse = false;
+
+        CKMCFile kmc_file;
+        uint32 k, mode, counter_size, prefix_length, signature_length, min;
+        uint64 max, total;
+
+        if (kmc_file.OpenForListing(c_inst_args.kmc_filtered_database_name)) {
+            db_exists = true;
+
+            kmc_file.Info(k, mode, counter_size, prefix_length, signature_length, min, max, total);
+            if (k == c_inst_args.kmer_length) {
+                db_to_reuse = true;
+            }
+        }
+        kmc_file.Close();
+
+        if (c_inst_args.use_long_kmer) {
+            bool long_db_exists = false;
+            bool long_db_to_reuse = false;
+
+            if (kmc_file.OpenForListing(c_inst_args.kmc_long_database_name)) {
+                long_db_exists = true;
+
+                kmc_file.Info(k, mode, counter_size, prefix_length, signature_length, min, max, total);
+                if (k == c_inst_args.long_kmer_length) {
+                    long_db_to_reuse = true;
+                }
+            }
+
+            if (db_exists && long_db_exists) {
+                if (db_to_reuse && long_db_to_reuse) {
+                    c_log << "Both KMC databases exist and can be reused." << std::endl;
+                    return;
+                }
+                else {
+                    c_log << "At least one of the KMC databases exists, but has different k-mer length. Both of them will be recreated." << std::endl << std::endl;
+                }
+            }
+            else {
+                c_log << "At least one of the KMC databases does not exist. Both of them will be created." << std::endl << std::endl;
+            }
+        }
+        else {
+            if (db_exists) {
+                if (db_to_reuse) {
+                    c_log << "KMC database exists and can be reused." << std::endl;
+                    return;
+                }
+                else {
+                    c_log << "KMC database exists, but has different k-mer length. It will be recreated." << std::endl << std::endl;
+                }
+            }
+            else {
+                c_log << "KMC database does not exist. It will be created." << std::endl << std::endl;
+            }
+        }
+    }
+
+    PrepareKMCDb prepareKMCDb(c_inst_args);
 
     Timer kmer_count_time;
     kmer_count_time.startTimer();
@@ -108,14 +171,22 @@ void PerformTasks::perform_kmcdb_creation() {
     kmer_count_time.stopTimer();
     c_inst_time.kmer_count = kmer_count_time;
 
-    std::cout << std::endl;
-    std::cout << "##################################################" << std::endl;
-    std::cout << "DETERMINING CUTOFF THRESHOLD" << std::endl;
-    std::cout << "##################################################" << std::endl;
-    f_log << std::endl;
-    f_log << "##################################################" << std::endl;
-    f_log << "DETERMINING CUTOFF THRESHOLD" << std::endl;
-    f_log << "##################################################" << std::endl;
+    if (c_inst_args.use_long_kmer) {
+        Timer long_kmer_count_time;
+        long_kmer_count_time.startTimer();
+
+        prepareKMCDb.countLongKmers();
+
+        long_kmer_count_time.stopTimer();
+        c_inst_time.long_kmer_count = long_kmer_count_time;
+    }
+
+
+
+    c_log << std::endl;
+    c_log << "##################################################" << std::endl;
+    c_log << "DETERMINING CUTOFF THRESHOLD" << std::endl;
+    c_log << "##################################################" << std::endl;
 
     Timer determine_cutoff_threshold_time;
     determine_cutoff_threshold_time.startTimer();
@@ -125,17 +196,12 @@ void PerformTasks::perform_kmcdb_creation() {
     determine_cutoff_threshold_time.stopTimer();
     c_inst_time.determine_cutoff_threshold = determine_cutoff_threshold_time;
 
-    std::cout << "Cutoff: " << cutoff << std::endl;
-    f_log << "Cutoff: " << cutoff << std::endl;
+    c_log << "Cutoff: " << cutoff << std::endl;
 
-    std::cout << std::endl;
-    std::cout << "##################################################" << std::endl;
-    std::cout << "REMOVING UNTRUSTED K - MERS" << std::endl;
-    std::cout << "##################################################" << std::endl;
-    f_log << std::endl;
-    f_log << "##################################################" << std::endl;
-    f_log << "REMOVING UNTRUSTED K - MERS" << std::endl;
-    f_log << "##################################################" << std::endl;
+    c_log << std::endl;
+    c_log << "##################################################" << std::endl;
+    c_log << "REMOVING UNTRUSTED K - MERS" << std::endl;
+    c_log << "##################################################" << std::endl;
 
     Timer remove_untrusted_kmers_time;
     remove_untrusted_kmers_time.startTimer();
@@ -153,89 +219,57 @@ void PerformTasks::perform_kmcdb_creation() {
 //----------------------------------------------------------------------
 
 void PerformTasks::summarize_outputs() {
-    //--------------------------------------------------
-    // stdout
-    //--------------------------------------------------
-    std::cout << "Running Time" << std::endl;
+    c_log << std::endl;
+    c_log << "##################################################" << std::endl;
+    c_log << "RUNNING TIME" << std::endl;
+    c_log << "##################################################" << std::endl;
 
-    std::cout << "     Checking reads" << std::endl;
-    for (std::size_t it = 0; it < c_inst_args.read_files_names.size(); ++it) {
-        std::cout << "          " << c_inst_args.read_files_names[it] << std::endl;
-        std::cout << "               Start: " << c_inst_time.vector_check_read_file[it].getStartTime() << std::endl;
-        std::cout << "               End  : " << c_inst_time.vector_check_read_file[it].getStopTime() << std::endl;
+    c_log << "Checking reads" << std::endl;
+    for (std::size_t it = 0; it < c_inst_args.read_files_data.size(); ++it) {
+        c_log << "     " << c_inst_args.read_files_data[it].input_name << std::endl;
+        c_log << "          Start: " << c_inst_time.vector_check_read_file[it].getStartTime() << std::endl;
+        c_log << "          End  : " << c_inst_time.vector_check_read_file[it].getStopTime() << std::endl;
     }
 
     if (c_inst_args.is_kmer_length_user_defined == false) {
-        std::cout << "     Determining parameters" << std::endl;
-        std::cout << "          Start: " << c_inst_time.determine_parameters.getStartTime() << std::endl;
-        std::cout << "          End  : " << c_inst_time.determine_parameters.getStopTime() << std::endl;
+        c_log << "Determining parameters" << std::endl;
+        c_log << "     Start: " << c_inst_time.determine_parameters.getStartTime() << std::endl;
+        c_log << "     End  : " << c_inst_time.determine_parameters.getStopTime() << std::endl;
     }
 
-    std::cout << "     Counting k-mers" << std::endl;
-    std::cout << "          Start: " << c_inst_time.kmer_count.getStartTime() << std::endl;
-    std::cout << "          End  : " << c_inst_time.kmer_count.getStopTime() << std::endl;
+    if (c_inst_time.kmer_count.wasTimeMeasured()) {
+        c_log << "Counting k-mers" << std::endl;
+        c_log << "     Start: " << c_inst_time.kmer_count.getStartTime() << std::endl;
+        c_log << "     End  : " << c_inst_time.kmer_count.getStopTime() << std::endl;
+    }
+
+    if (c_inst_time.long_kmer_count.wasTimeMeasured()) {
+        c_log << "Counting long k-mers" << std::endl;
+        c_log << "     Start: " << c_inst_time.kmer_count.getStartTime() << std::endl;
+        c_log << "     End  : " << c_inst_time.kmer_count.getStopTime() << std::endl;
+    }
 
     if (c_inst_time.determine_cutoff_threshold.wasTimeMeasured()) {
-        std::cout << "     Determining cutoff threshold" << std::endl;
-        std::cout << "          Start: " << c_inst_time.determine_cutoff_threshold.getStartTime() << std::endl;
-        std::cout << "          End  : " << c_inst_time.determine_cutoff_threshold.getStopTime() << std::endl;
+        c_log << "Determining cutoff threshold" << std::endl;
+        c_log << "     Start: " << c_inst_time.determine_cutoff_threshold.getStartTime() << std::endl;
+        c_log << "     End  : " << c_inst_time.determine_cutoff_threshold.getStopTime() << std::endl;
     }
 
     if (c_inst_time.remove_untrusted_kmers.wasTimeMeasured()) {
-        std::cout << "     Removing untrusted k-mers" << std::endl;
-        std::cout << "          Start: " << c_inst_time.remove_untrusted_kmers.getStartTime() << std::endl;
-        std::cout << "          End  : " << c_inst_time.remove_untrusted_kmers.getStopTime() << std::endl;
+        c_log << "Removing untrusted k-mers" << std::endl;
+        c_log << "     Start: " << c_inst_time.remove_untrusted_kmers.getStartTime() << std::endl;
+        c_log << "     End  : " << c_inst_time.remove_untrusted_kmers.getStopTime() << std::endl;
     }
 
-    std::cout << "     Correcting errors in reads" << std::endl;
-    for (std::size_t it = 0; it < c_inst_args.read_files_names.size(); ++it) {
-        std::cout << "          " << c_inst_args.read_files_names[it] << std::endl;
-        std::cout << "               Start: " << c_inst_time.vector_correct_errors_in_reads[it].getStartTime() << std::endl;
-        std::cout << "               End  : " << c_inst_time.vector_correct_errors_in_reads[it].getStopTime() << std::endl;
+    c_log << "Correcting errors in reads" << std::endl;
+    for (std::size_t it = 0; it < c_inst_args.read_files_data.size(); ++it) {
+        c_log << "     " << c_inst_args.read_files_data[it].input_name << std::endl;
+        c_log << "          Start: " << c_inst_time.vector_correct_errors_in_reads[it].getStartTime() << std::endl;
+        c_log << "          End  : " << c_inst_time.vector_correct_errors_in_reads[it].getStopTime() << std::endl;
     }
 
-    std::cout << std::endl;
-    std::cout << "The program is successfully completed" << std::endl << std::endl;
-
-    //--------------------------------------------------
-    // log file
-    //--------------------------------------------------
-    f_log << "Running Time" << std::endl;
-
-    f_log << "     Checking reads" << std::endl;
-    for (std::size_t it = 0; it < c_inst_args.read_files_names.size(); ++it) {
-        f_log << "          " << c_inst_args.read_files_names[it] << std::endl;
-        f_log << "               Start: " << c_inst_time.vector_check_read_file[it].getStartTime() << std::endl;
-        f_log << "               End  : " << c_inst_time.vector_check_read_file[it].getStopTime() << std::endl;
-    }
-
-    if (c_inst_args.is_kmer_length_user_defined == false) {
-        f_log << "     Determining parameters" << std::endl;
-        f_log << "          Start: " << c_inst_time.determine_parameters.getStartTime() << std::endl;
-        f_log << "          End  : " << c_inst_time.determine_parameters.getStopTime() << std::endl;
-    }
-
-    f_log << "     Counting k-mers" << std::endl;
-    f_log << "          Start: " << c_inst_time.kmer_count.getStartTime() << std::endl;
-    f_log << "          End  : " << c_inst_time.kmer_count.getStopTime() << std::endl;
-
-    f_log << "     Determining cutoff threshold" << std::endl;
-    f_log << "          Start: " << c_inst_time.determine_cutoff_threshold.getStartTime() << std::endl;
-    f_log << "          End  : " << c_inst_time.determine_cutoff_threshold.getStopTime() << std::endl;
-
-    f_log << "     Removing untrusted k-mers" << std::endl;
-    f_log << "          Start: " << c_inst_time.remove_untrusted_kmers.getStartTime() << std::endl;
-    f_log << "          End  : " << c_inst_time.remove_untrusted_kmers.getStopTime() << std::endl;
-
-    f_log << "     Correcting errors in reads" << std::endl;
-    for (std::size_t it = 0; it < c_inst_args.read_files_names.size(); ++it) {
-        f_log << "          " << c_inst_args.read_files_names[it] << std::endl;
-        f_log << "               Start: " << c_inst_time.vector_correct_errors_in_reads[it].getStartTime() << std::endl;
-        f_log << "               End  : " << c_inst_time.vector_correct_errors_in_reads[it].getStopTime() << std::endl;
-    }
-
-    f_log << std::endl;
-    f_log << "The program is successfully completed" << std::endl << std::endl;
+    c_log << std::endl;
+    c_log << "The program is successfully completed" << std::endl << std::endl;
 }
 
 
@@ -245,19 +279,22 @@ void PerformTasks::summarize_outputs() {
 //----------------------------------------------------------------------
 
 void PerformTasks::perform_correction() {
-    std::cout << std::endl;
-    std::cout << "##################################################" << std::endl;
-    std::cout << "CORRECTING ERRORS" << std::endl;
-    std::cout << "##################################################" << std::endl;
-    Log::get_stream() << std::endl;
-    Log::get_stream() << "##################################################" << std::endl;
-    Log::get_stream() << "CORRECTING ERRORS" << std::endl;
-    Log::get_stream() << "##################################################" << std::endl;
+    c_log << std::endl;
+    c_log << "##################################################" << std::endl;
+    c_log << "CORRECTING ERRORS" << std::endl;
+    c_log << "##################################################" << std::endl;
 
-    CKMCFile kmc_file;
+    CKMCFile kmc_file, kmc_long_file;
     if (!kmc_file.OpenForRA(c_inst_args.kmc_filtered_database_name)) {
-        std::cerr << "ERROR: cannot open KMC files." << std::endl;
+        c_err << "ERROR: cannot open KMC files." << std::endl;
         exit(EXIT_FAILURE);
+    }
+
+    if (c_inst_args.use_long_kmer) {
+        if (!kmc_long_file.OpenForRA(c_inst_args.kmc_long_database_name)) {
+            c_err << "ERROR: cannot open long k-mers KMC files." << std::endl;
+            exit(EXIT_FAILURE);
+        }
     }
 
     uint32 k, mode, counter_size, prefix_length, signature_length, min;
@@ -266,22 +303,25 @@ void PerformTasks::perform_correction() {
     kmc_file.Info(k, mode, counter_size, prefix_length, signature_length, min, max, total);
 
     if (k != c_inst_args.kmer_length) {
-        std::cerr << "ERROR: KMC database and provided k-mer lengths are different." << std::endl << std::endl;
-        f_log << "ERROR: KMC database and provided k-mer lengths are different." << std::endl << std::endl;
+        c_err << "ERROR: KMC database and provided k-mer lengths are different." << std::endl << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    for (std::size_t it = 0; it < c_inst_args.read_files_names.size(); ++it) {
-        C_correct_errors reads_corrector(c_inst_args, c_inst_args.error_correction_info_files_names[it], c_inst_args.read_files_names[it], c_inst_args.corrected_read_files_names[it], c_inst_args.read_files_types[it], check_inputs[it]);
+    for (std::size_t it = 0; it < c_inst_args.read_files_data.size(); ++it) {
+        C_correct_errors reads_corrector(c_inst_args, c_inst_args.read_files_data[it], check_inputs[it], c_inst_args.accept_filtered_with_long_kmers);
 
-        std::cout << c_inst_args.read_files_names[it] << std::endl;
-        f_log << c_inst_args.read_files_names[it] << std::endl;
+        c_log << c_inst_args.read_files_data[it].input_name << std::endl;
 
         Timer correct_errors_in_reads_timer;
         correct_errors_in_reads_timer.startTimer();
 
-        // corrent errors in reads
-        reads_corrector.correct_errors_in_reads(kmc_file);
+        // correct errors in reads
+        if (c_inst_args.use_long_kmer) {
+            reads_corrector.correct_errors_in_a_file(kmc_file, &kmc_long_file);
+        }
+        else {
+            reads_corrector.correct_errors_in_a_file(kmc_file, nullptr);
+        }
 
         correct_errors_in_reads_timer.stopTimer();
         c_inst_time.vector_correct_errors_in_reads.push_back(correct_errors_in_reads_timer);
@@ -296,6 +336,8 @@ void PerformTasks::finalize() {
     // summarize output results
     summarize_outputs();
 
-    PrepareKMCDb prepareKMCDb(c_inst_args);
-    prepareKMCDb.removeFilteredKMCDatabase();
+    if (!c_inst_args.reuse_kmc_db) {
+        PrepareKMCDb prepareKMCDb(c_inst_args);
+        prepareKMCDb.removeFilteredKMCDatabase();
+    }
 }

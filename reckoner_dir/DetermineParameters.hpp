@@ -4,7 +4,7 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* Version: 1.2
+* Version: 2.0
 *
 */
 
@@ -14,6 +14,7 @@
 #include "RunExternal.h"
 #include "parse_args.hpp"
 #include "check_inputs.hpp"
+#include "Log.h"
 #include <vector>
 #include <sstream>
 
@@ -33,9 +34,11 @@ private:
     const C_arg& c_inst_args;
     const std::vector<C_check_read>& check_inputs;
 
+    C_log c_err;
+
 public:
     DetermineParameters(const C_arg& _c_inst_args, const std::vector<C_check_read>& _check_inputs) :
-        c_inst_args(_c_inst_args), check_inputs(_check_inputs) {}
+        c_inst_args(_c_inst_args), check_inputs(_check_inputs), c_err(std::cerr) {}
 
     std::size_t determineKmerLength();
     std::size_t determineGenomeSize();

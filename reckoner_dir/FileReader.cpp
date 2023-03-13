@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.2
+ * Version: 2.0
  * 
  */
 
@@ -66,7 +66,7 @@ bool FileReader::getLine(char* outBuff) {
     std::size_t out;
     if (getEolPos(buffer + currentPos, fileBytesRead - currentPos, out)) {
         if (out + currentPos >= BUFFER_SIZE) {
-            std::cerr << "Wrong file format." << std::endl;
+            c_err << "Wrong file format." << std::endl;
             exit(EXIT_FAILURE);
         }
         memcpy(outBuff, buffer + currentPos, out);
@@ -95,7 +95,7 @@ bool FileReader::getLine(char* outBuff) {
         const bool found = getEolPos(buffer + currentPos, fileBytesRead - currentPos, out);
 
         if (out + copyBytes >= BUFFER_SIZE - 1) {
-            std::cerr << "Wrong file format." << std::endl;
+            c_err << "Wrong file format." << std::endl;
             exit(EXIT_FAILURE);
         }
 
@@ -135,7 +135,7 @@ bool FileReader::getLine(std::string& outString) {
     std::size_t out;
     if (getEolPos(buffer + currentPos, fileBytesRead - currentPos, out)) {
         if (out + currentPos >= BUFFER_SIZE) {
-            std::cerr << "Wrong file format." << std::endl;
+            c_err << "Wrong file format." << std::endl;
             exit(EXIT_FAILURE);
         }
         outString.append(buffer + currentPos, out);
@@ -159,7 +159,7 @@ bool FileReader::getLine(std::string& outString) {
         const bool found = getEolPos(buffer + currentPos, fileBytesRead - currentPos, out);
 
         if (out + copyBytes >= BUFFER_SIZE - 1) {
-            std::cerr << "Wrong file format." << std::endl;
+            c_err << "Wrong file format." << std::endl;
             exit(EXIT_FAILURE);
         }
 
@@ -192,7 +192,7 @@ bool FileReader::putString(const std::string& buff) {
         return static_cast<std::size_t> (gzwrite(gz_file, buff.c_str(), static_cast<unsigned>(sizeof (char) * buff.length()))) == buff.length();
     }
     else {
-        std::cerr << "File type not defined." << std::endl;
+        c_err << "File type not defined." << std::endl;
         exit(EXIT_FAILURE);
     }
 }
@@ -211,7 +211,7 @@ long FileReader::tellPos() {
         filePos = gztell(gz_file);
     }
     else {
-        std::cerr << "File type not defined." << std::endl;
+        c_err << "File type not defined." << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -233,7 +233,7 @@ long FileReader::seekPos(long pos) {
         return gzseek(gz_file, pos, SEEK_SET);
     }
     else {
-        std::cerr << "File type not defined." << std::endl;
+        c_err << "File type not defined." << std::endl;
         exit(EXIT_FAILURE);
     }
 }
@@ -268,7 +268,7 @@ bool FileReader::openFile(OpenMode openMode) {
         mode = "wb";
     }
     else {
-        std::cerr << "Open mode not defined" << std::endl;
+        c_err << "Open mode not defined" << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -284,7 +284,7 @@ bool FileReader::openFile(OpenMode openMode) {
         return gz_file != NULL;
     }
     else {
-        std::cerr << "File type not defined." << std::endl;
+        c_err << "File type not defined." << std::endl;
         exit(EXIT_FAILURE);
     }
     return false;
@@ -326,7 +326,7 @@ inline std::size_t FileReader::fileRead(char* outBuff, std::size_t elemSize, std
         return gzread(gz_file, outBuff, static_cast<unsigned>(sizeof (char) * elemCount));
     }
     else {
-        std::cerr << "File type not defined." << std::endl;
+        c_err << "File type not defined." << std::endl;
         exit(EXIT_FAILURE);
     }
 }

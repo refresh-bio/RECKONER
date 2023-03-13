@@ -671,6 +671,28 @@ public:
 		 }
 		 return min_mmr.get();
 	 }	
+
+//-----------------------------------------------------------------------
+// Convert a string of an alphabet ACGT into a kmer of a CKmerAPI.
+// Function does not check kmer length nor its symbols.
+// IN	: kmer_string	- a string of an alphabet ACGT
+// RET	: true			- if succesfull
+//-----------------------------------------------------------------------
+	inline bool from_string_low_level(const char* kmer_string)
+	{
+		return from_string_impl(kmer_string, kmer_length);
+	}
+
+//-----------------------------------------------------------------------
+// Convert a string of an alphabet ACGT into a kmer of a CKmerAPI.
+//Function does not check kmer symbols.
+// IN	: kmer_string	- a string of an alphabet ACGT
+// RET	: true			- if succesfull
+//-----------------------------------------------------------------------
+	inline bool from_string_low_level(const std::string& kmer_string)
+	{
+		return from_string_impl(kmer_string.begin(), static_cast<uint32>(kmer_string.length()));
+	}
 };
 
 

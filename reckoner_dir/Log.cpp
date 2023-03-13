@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.2
+ * Version: 2.0
  * 
  */
 
@@ -27,7 +27,8 @@ void Log::open_log_file(const std::string& file_name) {
     f_log.open(file_name.c_str());
 
     if (!f_log.is_open()) {
-        std::cerr << "ERROR: Cannot open log file." << std::endl;
+        std::cerr << "ERROR: Cannot create log file. Probably RECKONER has no write permission in the current folder" << std::endl;
+        std::cerr << " or disk is completely full." << std::endl;
         exit(EXIT_FAILURE);
     }
 }

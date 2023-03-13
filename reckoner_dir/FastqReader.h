@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  *
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.2
+ * Version: 2.0
  *
 */
 
@@ -43,7 +43,7 @@ public:
 //----------------------------------------------------------------------
 
 class FastqReader {
-    std::ofstream& f_log;
+    C_log c_err;
 
     MemoryPool *pmm_fastq;
 
@@ -113,7 +113,7 @@ class FastqReaderWrapper {
     MemoryPool memoryPool;
     FastqReader reader;
 
-	typedef std::tuple<char*, size_t, size_t> PartIndicator;
+    typedef std::tuple<char*, size_t, size_t> PartIndicator;
 
     bool finished;
 

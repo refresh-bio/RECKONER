@@ -3,7 +3,10 @@ RECKONER_DIR = reckoner_dir/
 BIN_DIR = bin/
 CC=g++
 
-all: kmc_main reckoner
+all: bin kmc_main reckoner
+
+bin:
+	mkdir -p $(BIN_DIR)
 
 kmc_main:
 	cd $(KMC_DIR) && $(MAKE) --file=makefile_static CC=$(CC)
@@ -15,6 +18,6 @@ reckoner: kmc_main
 	-cp $(RECKONER_DIR)reckoner $(BIN_DIR)
 
 clean:
-	-rm -f $(BIN_DIR)*
+	-rm -rf $(BIN_DIR)
 	cd $(RECKONER_DIR) && $(MAKE) clean
 	cd $(KMC_DIR) && $(MAKE) clean

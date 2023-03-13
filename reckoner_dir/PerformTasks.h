@@ -4,12 +4,12 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 1.2
+ * Version: 2.0
  * 
  */
 
 #ifndef PERFORMTESTING_H
-#define	PERFORMTESTING_H
+#define PERFORMTESTING_H
 
 #include "parse_args.hpp"
 #include "check_inputs.hpp"
@@ -21,7 +21,7 @@
 
 class PerformTasks {
 public:
-    PerformTasks(const C_arg& _c_inst_args) : c_inst_args(_c_inst_args), f_log(Log::get_stream()) {};
+    PerformTasks(const C_arg& _c_inst_args) : c_inst_args(_c_inst_args), c_log(std::cout), c_err(std::cerr) {};
 
     void perform_check_read();
     void perform_parameter_determination();
@@ -34,10 +34,11 @@ private:
     const C_arg& c_inst_args;
     std::vector<C_check_read> check_inputs;
 
-    std::ofstream& f_log;
+    C_log c_log;
+    C_log c_err;
 
     void summarize_outputs();
 };
 
-#endif	/* PERFORMTESTING_H */
+#endif /* PERFORMTESTING_H */
 

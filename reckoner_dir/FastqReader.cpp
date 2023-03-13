@@ -4,7 +4,7 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* Version: 1.2
+* Version: 2.0
 *
 */
 
@@ -103,7 +103,7 @@ bool FastqReader::IsEof() {
 
 
 
-FastqReader::FastqReader(MemoryPool *_pmm_fastq, unsigned _gzip_buffer_size) : f_log(Log::get_stream()) {
+FastqReader::FastqReader(MemoryPool *_pmm_fastq, unsigned _gzip_buffer_size) : c_err(std::cerr) {
     pmm_fastq = _pmm_fastq;
 
     // Input file mode (default: uncompressed)
@@ -153,7 +153,10 @@ bool FastqReader::SetPartSize(std::size_t _part_size) {
 }
 
 
-
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4996)
+#endif
 bool FastqReader::OpenFiles() {
     if (in || in_gzip)
         return false;
@@ -179,6 +182,9 @@ bool FastqReader::OpenFiles() {
 
     return true;
 }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 
 
@@ -204,8 +210,7 @@ bool FastqReader::GetPart(char *&_part, std::size_t &_size) {
 
     if (part_filled >= OVERHEAD_SIZE)
     {
-        std::cerr << std::endl << "ERROR: Wrong input file" << std::endl << std::endl;
-        f_log << std::endl << "ERROR: Wrong input file" << std::endl << std::endl;
+        c_err << std::endl << "ERROR: Wrong input file" << std::endl << std::endl;
         exit(EXIT_FAILURE);
     }
 

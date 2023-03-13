@@ -4,7 +4,7 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* Version: 1.2
+* Version: 2.0
 *
 */
 
@@ -28,12 +28,11 @@ void DetermineParameters::findReadsStats(double& errorRate, double& readLength) 
     unsigned qualitiesNumber = 0;
     unsigned readsNumber = 0;
 
-    for (unsigned i = 0; i < c_inst_args.read_files_names.size(); ++i) {
+    for (unsigned i = 0; i < c_inst_args.read_files_data.size(); ++i) {
         FileReader currentFile;
-        currentFile.setFileName(c_inst_args.read_files_names[i], c_inst_args.read_files_types[i]);
+        currentFile.setFileName(c_inst_args.read_files_data[i].input_name, c_inst_args.read_files_data[i].type);
         if (!currentFile.openFile(FileReader::READ)) {
-            std::cerr << "ERROR: Cannot open " << c_inst_args.read_files_names[i] << " to determine the k-mer length." << std::endl;
-            Log::get_stream() << "ERROR: Cannot open " << c_inst_args.read_files_names[i] << " to determine the k-mer length." << std::endl;
+            c_err << "ERROR: Cannot open " << c_inst_args.read_files_data[i].input_name << " to determine the k-mer length." << std::endl;
             exit(EXIT_FAILURE);
         }
 
@@ -73,34 +72,25 @@ void DetermineParameters::findReadsStats(double& errorRate, double& readLength) 
 }
 
 std::size_t DetermineParameters::determineKmerLength() {
-    double errorRate = 0;
-    double readLength = 0;
+    double k = K_LEN_A * log2(c_inst_args.genome_size) + K_LEN_B;
 
-    findReadsStats(errorRate, readLength);
-
-    errorRate *= 100.0;
-
-    double a = 0.8;
-    double b = 9 + errorRate;
-    double c = 2 + static_cast<double>(readLength) / 100;
-
-    double kMin = 20;
-    double kMax = 0.2 * readLength + 30;
-
-    double k = (a * log2(c_inst_args.genome_size) - b) * c;
-
-    k = std::min(k, kMax);
-    k = std::max(k, kMin);
+    k = std::max(k, static_cast<double>(K_MIN));
 
     return static_cast<std::size_t>(std::round(k));
 }
 
 std::size_t DetermineParameters::determineGenomeSize() {
     char* kmcBuffer = new char[KMC_STDOUT_BUFFER_SIZE];
-    RunExternal runExternal(c_inst_args.n_threads, c_inst_args.kmc_memory);
-    if (!runExternal.runKMCToBuffer(PROBE_KMER_LENGTH, c_inst_args.read_files_names, c_inst_args.kmc_determine_params_database_name, c_inst_args.kmc_list_file_name, c_inst_args.prefix, kmcBuffer, KMC_STDOUT_BUFFER_SIZE)) {
-        std::cerr << "ERROR: failed to count k-mers." << std::endl;
-        Log::get_stream() << "ERROR: failed to count k-mers." << std::endl;
+    RunExternal runExternal(c_inst_args.n_threads, c_inst_args.kmc_memory, c_inst_args.kmc_ram);
+
+    // extract input files names
+    std::vector<std::string> read_files_names;
+    for (auto& it : c_inst_args.read_files_data) {
+        read_files_names.push_back(it.input_name);
+    }
+
+    if (!runExternal.runKMCToBuffer(PROBE_KMER_LENGTH, read_files_names, c_inst_args.kmc_determine_params_database_name, c_inst_args.kmc_list_file_name, c_inst_args.prefix, kmcBuffer, KMC_STDOUT_BUFFER_SIZE)) {
+        c_err << "ERROR: failed to count k-mers." << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -108,8 +98,7 @@ std::size_t DetermineParameters::determineGenomeSize() {
     std::size_t allReads;
 
     if (!parseKMCOutput(allKmers, allReads, kmcBuffer, KMC_STDOUT_BUFFER_SIZE)) {
-        std::cerr << "ERROR: cannot obtain k-mers statistics." << std::endl;
-        Log::get_stream() << "ERROR: cannot obtain k-mers statistics." << std::endl;
+        c_err << "ERROR: cannot obtain k-mers statistics." << std::endl;
         exit(EXIT_FAILURE);
     }
     delete[] kmcBuffer;
@@ -154,7 +143,7 @@ bool DetermineParameters::getValueFromString(const std::string& line, const std:
 bool DetermineParameters::parseKMCOutput(std::size_t& resultAllKmers, std::size_t& resultAllReads, char* buffer, const int bufferSize) {
     bool allKmersSet = false;
     bool allReadsSet = false;
-    std::size_t allReads, allKmers;
+    std::size_t allReads = 0, allKmers = 0;
 
     std::istringstream sstream(buffer);
     std::string line;

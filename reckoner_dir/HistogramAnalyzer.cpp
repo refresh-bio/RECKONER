@@ -4,7 +4,7 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* Version: 1.2
+* Version: 2.0
 *
 */
 
@@ -47,7 +47,7 @@ unsigned HistogramAnalyzer::getCutoffThreshold(const std::string& kmcDatabase) {
     std::vector<uint64> histogram;
 
     if (!buildHistogram(kmcDatabase, HISTOGRAM_SIZE, histogram)) {
-        std::cerr << "ERROR: cannot open KMC files to determine cutoff threshold." << std::endl;
+        c_err << "ERROR: cannot open KMC files to determine cutoff threshold." << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -71,7 +71,7 @@ unsigned HistogramAnalyzer::getHistogramPeak(const std::string& kmcDatabase) {
     std::vector<uint64> histogram;
 
     if (!buildHistogram(kmcDatabase, HISTOGRAM_SIZE, histogram)) {
-        std::cerr << "ERROR: cannot open KMC files to determine k-mers histogram peak." << std::endl;
+        c_err << "ERROR: cannot open KMC files to determine k-mers histogram peak." << std::endl;
         exit(EXIT_FAILURE);
     }
 

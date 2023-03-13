@@ -57,6 +57,9 @@
     <ClInclude Include="FastqReader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="QueryKMCDb.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="correct_read.cpp">
