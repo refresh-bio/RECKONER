@@ -4,7 +4,7 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* Version: 2.0
+* Version: 2.1
 *
 */
 
@@ -110,7 +110,7 @@ std::size_t DetermineParameters::determineGenomeSize() {
     removeKMCDatabase();
 
     unsigned readLength = static_cast<unsigned>(std::round((allKmers / static_cast<double>(allReads + PROBE_KMER_LENGTH - 1)) + PROBE_KMER_LENGTH - 1));
-    double coverage = static_cast<float>(histoMaximum * readLength) / static_cast<double>(readLength - PROBE_KMER_LENGTH + 1);
+    double coverage = static_cast<double>(histoMaximum * readLength) / static_cast<double>(readLength - PROBE_KMER_LENGTH + 1);
 
     //std::cout << "All kmers   " << allKmers << std::endl;
     //std::cout << "All reads   " << allReads << std::endl;

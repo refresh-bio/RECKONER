@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 2.0
+ * Version: 2.1
  * 
  */
 
@@ -97,7 +97,7 @@ public:
 
 class C_modification_with_quality {
 public:
-    float quality;
+    double quality;
     char modification; // new symbol in case of substitution or deletion
 
     bool potential_indel;
@@ -277,10 +277,10 @@ private:
     bool create_modification_path_with_indels_towards_3_prime(std::vector<C_candidate_path>& candidate_path_vector, std::size_t correction_nesting);
     bool create_modification_path_towards_3_prime_internal(std::vector<C_candidate_path>& candidate_path_vector, std::size_t current_kmer_pos, std::size_t correction_nesting);
     bool create_modification_path_with_indels_towards_3_prime_internal(std::vector<C_candidate_path>& candidate_path_vector, std::size_t current_kmer_pos, std::size_t correction_nesting);
-    bool create_modification_path_towards_3_prime_single_kmer(std::vector<C_candidate_path>& candidate_path_vector, const std::vector<std::size_t>& candidates_indexes, float kmer_quality);
-    bool create_modification_path_with_single_substitution(std::vector<C_candidate_path>& candidate_path_vector, float kmer_quality, std::size_t pos, char modification);
-    bool create_modification_path_with_single_indel(std::vector<C_candidate_path>& candidate_path_vector, float kmer_quality, std::size_t pos, bool insertion = true, char modification = '0');
-    void create_modification_path_empty_no_extend(std::vector<C_candidate_path>& candidate_path_vector, float kmer_quality);
+    bool create_modification_path_towards_3_prime_single_kmer(std::vector<C_candidate_path>& candidate_path_vector, const std::vector<std::size_t>& candidates_indexes, double kmer_quality);
+    bool create_modification_path_with_single_substitution(std::vector<C_candidate_path>& candidate_path_vector, double kmer_quality, std::size_t pos, char modification);
+    bool create_modification_path_with_single_indel(std::vector<C_candidate_path>& candidate_path_vector, double kmer_quality, std::size_t pos, bool insertion = true, char modification = '0');
+    void create_modification_path_empty_no_extend(std::vector<C_candidate_path>& candidate_path_vector, double kmer_quality);
 };
 
 
@@ -427,7 +427,7 @@ void C_correct_read<CORRECT_INDEL>::correct_errors_in_a_read() {
         const char* current_kmer = sequence_modified.c_str() + it_kmer;
 
         // k-mer is solid
-        float kmer_quality;
+        double kmer_quality;
         if (query.query_text(current_kmer, kmer_quality) == true) {
             // start point of a solid region
             if (is_solid_kmer_prev == false) {
@@ -892,7 +892,7 @@ inline void C_correct_read<true>::correct_errors_between_solid_regions(const std
             kmer_initial[kmer_length - 1] = NEOCLEOTIDE[it_alter];
 
             // kmer_initial is solid
-            float kmer_quality;
+            double kmer_quality;
             if (query.query_text(kmer_initial, kmer_quality) == true) {
                 modifications_sequence_stack[0].modification = NEOCLEOTIDE[it_alter];
                 modifications_sequence_stack[0].quality = kmer_quality;
@@ -923,12 +923,8 @@ inline void C_correct_read<true>::correct_errors_between_solid_regions(const std
                         );
                 }
             }
-
-            if (sequence_modified[index_start + kmer_length - 1] != NEOCLEOTIDE[it_alter]) {
-                correct_indel(kmer_initial, index_start, index_last_mod, candidate_path_vector_out, 0, checked_changes, max_remaining_changes, max_remaining_non_solid);
-            }
         }
-
+        correct_indel(kmer_initial, index_start, index_last_mod, candidate_path_vector_out, 0, checked_changes, max_remaining_changes, max_remaining_non_solid);
     }
 }
 
@@ -971,7 +967,7 @@ inline void C_correct_read<false>::correct_errors_between_solid_regions(const st
         kmer_initial[kmer_length - 1] = NEOCLEOTIDE[it_alter];
 
         // kmer_initial is solid
-        float kmer_quality;
+        double kmer_quality;
         if (query.query_text(kmer_initial, kmer_quality) == true) {
             modifications_sequence_stack[0].modification = NEOCLEOTIDE[it_alter];
             modifications_sequence_stack[0].quality = kmer_quality;
@@ -1036,7 +1032,7 @@ inline void C_correct_read<true>::correct_errors_5_prime_end(const std::size_t i
         kmer_initial[0] = NEOCLEOTIDE[it_alter];
 
         // kmer_initial is solid
-        float kmer_quality;
+        double kmer_quality;
         if (query.query_text(kmer_initial, kmer_quality) == true) {
             modifications_sequence_stack[0].modification = NEOCLEOTIDE[it_alter];
             modifications_sequence_stack[0].quality = kmer_quality;
@@ -1092,7 +1088,7 @@ inline void C_correct_read<false>::correct_errors_5_prime_end(const std::size_t 
         kmer_initial[0] = NEOCLEOTIDE[it_alter];
 
         // kmer_initial is solid
-        float kmer_quality;
+        double kmer_quality;
         if (query.query_text(kmer_initial, kmer_quality) == true) {
             modifications_sequence_stack[0].modification = NEOCLEOTIDE[it_alter];
             modifications_sequence_stack[0].quality = kmer_quality;
@@ -1154,7 +1150,7 @@ inline void C_correct_read<true>::correct_errors_3_prime_end(const std::size_t i
         kmer_initial[kmer_length - 1] = NEOCLEOTIDE[it_alter];
 
         // kmer_initial is solid
-        float kmer_quality;
+        double kmer_quality;
         if (query.query_text(kmer_initial, kmer_quality) == true) {
             modifications_sequence_stack[0].modification = NEOCLEOTIDE[it_alter];
             modifications_sequence_stack[0].quality = kmer_quality;
@@ -1209,7 +1205,7 @@ inline void C_correct_read<false>::correct_errors_3_prime_end(const std::size_t 
         kmer_initial[kmer_length - 1] = NEOCLEOTIDE[it_alter];
 
         // kmer_initial is solid
-        float kmer_quality;
+        double kmer_quality;
         if (query.query_text(kmer_initial, kmer_quality) == true) {
             modifications_sequence_stack[0].modification = NEOCLEOTIDE[it_alter];
             modifications_sequence_stack[0].quality = kmer_quality;
@@ -1248,8 +1244,8 @@ bool C_correct_read<CORRECT_INDEL>::check_long_kmers(const std::string& sequence
 
     const char* kmer = sequence.c_str();
     for (std::size_t it_base = 0; it_base < sequence.length() - long_kmer_length + 1; ++it_base, ++kmer) {
-        float tmp;
-        if (!query.query_text_long_kmer(kmer, tmp)) {
+        double kmer_quality;
+        if (!query.query_text_long_kmer(kmer, kmer_quality)) {
             return false;
         }
     }
@@ -1292,7 +1288,7 @@ inline void C_correct_read<CORRECT_INDEL>::correct_errors_first_kmer(std::vector
     }
         // no low-quality base or too many low-quality bases
     else {
-        float kmer_quality;
+        double kmer_quality;
         if (query.query_text(first_kmer, kmer_quality) == true) {
             create_modification_path_empty_no_extend(candidate_path_vector_out, kmer_quality);
         }
@@ -1339,7 +1335,7 @@ inline void C_correct_read<CORRECT_INDEL>::correct_errors_first_kmer(std::vector
                 std::string kmer_tmp(sequence_modified.substr(0, kmer_length + 1));
                 kmer_tmp.erase(it, 1);
 
-                float kmer_quality;
+                double kmer_quality;
                 if (query.query_text(kmer_tmp, kmer_quality) == true) {
                     create_modification_path_with_single_indel(candidate_path_vector_out, kmer_quality, it);
                 }
@@ -1353,7 +1349,7 @@ inline void C_correct_read<CORRECT_INDEL>::correct_errors_first_kmer(std::vector
                     std::string kmer_tmp(sequence_modified.substr(0, kmer_length - 1));
                     kmer_tmp.insert(it, 1, NEOCLEOTIDE[it_alter]);
 
-                    float kmer_quality;
+                    double kmer_quality;
                     if (query.query_text(kmer_tmp, kmer_quality) == true) {
                         create_modification_path_with_single_indel(candidate_path_vector_out, kmer_quality, it, false, NEOCLEOTIDE[it_alter]);
                     }
@@ -1406,7 +1402,7 @@ inline void C_correct_read<CORRECT_INDEL>::first_kmer_exhaustive_search(std::str
         modifications_sequence_stack[index].modification = NEOCLEOTIDE[it_alter];
 
         if (index == candidates_indexes.size() - 1) {
-            float kmer_quality;
+            double kmer_quality;
             if (query.query_text(kmer, kmer_quality) == true) {
                 create_modification_path_towards_3_prime_single_kmer(candidate_path_vector, candidates_indexes, kmer_quality);
             }
@@ -1440,7 +1436,7 @@ inline void C_correct_read<CORRECT_INDEL>::first_kmer_consecutive_search(const s
                 kmer_tmp[it_bases] = NEOCLEOTIDE[it_alter];
 
                 // add kmer_tmp to candidate_path_tmp if it is solid
-                float kmer_quality;
+                double kmer_quality;
                 if (query.query_text(kmer_tmp, kmer_quality) == true) {
                     // generate a new candidate path
                     create_modification_path_with_single_substitution(candidate_path_vector, kmer_quality, it_bases, NEOCLEOTIDE[it_alter]);
@@ -1516,7 +1512,7 @@ inline bool C_correct_read<CORRECT_INDEL>::perform_extend_out_first_kmer(const C
             kmer_initial[0] = NEOCLEOTIDE[it_alter];
 
             // kmer_initial is solid
-            float kmer_quality = 0.0f;
+            double kmer_quality = 0.0f;
             bool solid_kmer = query.query_text(kmer_initial, kmer_quality);
             if (solid_kmer || max_remaining_non_solid > 0) {
                 // if extend_amount == 1
@@ -2113,7 +2109,7 @@ void C_correct_read<CORRECT_INDEL>::correct_indel(const std::string& kmer, std::
 
             deletion_kmer.back() = NEOCLEOTIDE[it_alter];
 
-            float kmer_quality;
+            double kmer_quality;
             if (query.query_text(deletion_kmer, kmer_quality)) {
                 modifications_sequence_stack[nesting].quality = kmer_quality;
                 modifications_sequence_stack[nesting].modification = NEOCLEOTIDE[it_alter];
@@ -2176,7 +2172,7 @@ inline bool C_correct_read<CORRECT_INDEL>::correct_last_deletion(const std::stri
 
         deletion_kmer.back() = NEOCLEOTIDE[it_alter];
 
-        float kmer_quality;
+        double kmer_quality;
         if (query.query_text(deletion_kmer, kmer_quality)) {
             modifications_sequence_stack[nesting].quality = kmer_quality;
             modifications_sequence_stack[nesting].modification = NEOCLEOTIDE[it_alter];
@@ -2287,7 +2283,7 @@ inline void C_correct_read<true>::correct_indel_5_prime(const std::string & kmer
 
             deletion_kmer.back() = NEOCLEOTIDE[it_alter];
 
-            float kmer_quality;
+            double kmer_quality;
             if (query.query_text(deletion_kmer, kmer_quality)) {
                 modifications_sequence_stack[nesting].quality = kmer_quality;
                 modifications_sequence_stack[nesting].modification = NEOCLEOTIDE[it_alter];
@@ -2402,7 +2398,7 @@ inline void C_correct_read<true>::correct_indel_3_prime(const std::string & kmer
 
             deletion_kmer.back() = NEOCLEOTIDE[it_alter];
 
-            float kmer_quality;
+            double kmer_quality;
             if (query.query_text(deletion_kmer, kmer_quality)) {
                 modifications_sequence_stack[nesting].quality = kmer_quality;
                 modifications_sequence_stack[nesting].modification = NEOCLEOTIDE[it_alter];
@@ -2445,7 +2441,7 @@ inline void C_correct_read<true>::extend_a_kmer_5_prime_end(const std::string& k
     const bool is_low_quality_base = is_low_LUT[quality_score[index_kmer]];
 
     // kmer_new is a solid k-mer
-    float kmer_quality;
+    double kmer_quality;
     if (!is_low_quality_base && query.query_text(kmer_new, kmer_quality) == true) {
         modifications_sequence_stack[nesting].quality = kmer_quality;
         modifications_sequence_stack[nesting].modification = kmer_new[0];
@@ -2485,7 +2481,7 @@ inline void C_correct_read<true>::extend_a_kmer_5_prime_end(const std::string& k
                 kmer_new[0] = NEOCLEOTIDE[it_alter];
 
                 // kmer_new is solid
-                float kmer_quality;
+                double kmer_quality;
                 if (query.query_text(kmer_new, kmer_quality) == true) {
                     solid_found = true;
 
@@ -2516,7 +2512,6 @@ inline void C_correct_read<true>::extend_a_kmer_5_prime_end(const std::string& k
                             );
                         check_is_new_potential_indel_5_prime(nesting, index_kmer);
                     }
-                    correct_indel_5_prime(kmer_new, index_kmer, candidate_path_vector, nesting, checked_changes, max_remaining_changes, max_remaining_non_solid);
                 }
             }
         }
@@ -2550,9 +2545,9 @@ inline void C_correct_read<true>::extend_a_kmer_5_prime_end(const std::string& k
                         max_remaining_non_solid - 1
                         );
                 }
-                correct_indel_5_prime(kmer_new, index_kmer, candidate_path_vector, nesting, checked_changes, max_remaining_changes, max_remaining_non_solid);
             }
         }
+        correct_indel_5_prime(kmer_new, index_kmer, candidate_path_vector, nesting, checked_changes, max_remaining_changes, max_remaining_non_solid);
     }
 }
 
@@ -2573,7 +2568,7 @@ inline void C_correct_read<false>::extend_a_kmer_5_prime_end(const std::string& 
     const bool is_low_quality_base = is_low_LUT[quality_score[index_kmer]];
 
     // kmer_new is a solid k-mer
-    float kmer_quality;
+    double kmer_quality;
     if (!is_low_quality_base && query.query_text(kmer_new, kmer_quality) == true) {
         modifications_sequence_stack[nesting].quality = kmer_quality;
         modifications_sequence_stack[nesting].modification = kmer_new[0];
@@ -2613,7 +2608,7 @@ inline void C_correct_read<false>::extend_a_kmer_5_prime_end(const std::string& 
                 kmer_new[0] = NEOCLEOTIDE[it_alter];
 
                 // kmer_new is solid
-                float kmer_quality;
+                double kmer_quality;
                 if (query.query_text(kmer_new, kmer_quality) == true) {
                     solid_found = true;
                     modifications_sequence_stack[nesting].quality = kmer_quality;
@@ -2696,7 +2691,7 @@ inline void C_correct_read<true>::extend_a_kmer_3_prime_end(const std::string& k
     const bool is_low_quality_base = is_low_LUT[quality_score[index_kmer + kmer_length - 1]];
 
     // kmer_new is a solid k-mer
-    float kmer_quality;
+    double kmer_quality;
     if (!is_low_quality_base && query.query_text(kmer_new, kmer_quality) == true) {
         modifications_sequence_stack[nesting].quality = kmer_quality;
         modifications_sequence_stack[nesting].modification = kmer_new[kmer_length - 1];
@@ -2737,7 +2732,7 @@ inline void C_correct_read<true>::extend_a_kmer_3_prime_end(const std::string& k
                 kmer_new[kmer_length - 1] = NEOCLEOTIDE[it_alter];
 
                 // kmer_new is solid
-                float kmer_quality;
+                double kmer_quality;
                 if (query.query_text(kmer_new, kmer_quality) == true) {
                     solid_found = true;
 
@@ -2767,7 +2762,6 @@ inline void C_correct_read<true>::extend_a_kmer_3_prime_end(const std::string& k
                             );
                         check_is_new_potential_indel(nesting, index_kmer + kmer_length - 1);
                     }
-                    correct_indel_3_prime(kmer_new, index_kmer, candidate_path_vector, nesting, checked_changes, max_remaining_changes, max_remaining_non_solid);
                 }
             }
         }
@@ -2801,9 +2795,10 @@ inline void C_correct_read<true>::extend_a_kmer_3_prime_end(const std::string& k
                         max_remaining_non_solid - 1
                         );
                 }
-                correct_indel_3_prime(kmer_new, index_kmer, candidate_path_vector, nesting, checked_changes, max_remaining_changes, max_remaining_non_solid);
             }
         }
+
+        correct_indel_3_prime(kmer_new, index_kmer, candidate_path_vector, nesting, checked_changes, max_remaining_changes, max_remaining_non_solid);
     }
 }
 
@@ -2824,7 +2819,7 @@ inline void C_correct_read<false>::extend_a_kmer_3_prime_end(const std::string& 
     const bool is_low_quality_base = is_low_LUT[quality_score[index_kmer + kmer_length - 1]];
 
     // kmer_new is a solid k-mer
-    float kmer_quality;
+    double kmer_quality;
     if (!is_low_quality_base && query.query_text(kmer_new, kmer_quality) == true) {
         modifications_sequence_stack[nesting].quality = kmer_quality;
         modifications_sequence_stack[nesting].modification = kmer_new[kmer_length - 1];
@@ -2864,7 +2859,7 @@ inline void C_correct_read<false>::extend_a_kmer_3_prime_end(const std::string& 
                 kmer_new[kmer_length - 1] = NEOCLEOTIDE[it_alter];
 
                 // kmer_new is solid
-                float kmer_quality;
+                double kmer_quality;
                 if (query.query_text(kmer_new, kmer_quality) == true) {
                     solid_found = true;
                     modifications_sequence_stack[nesting].quality = kmer_quality;
@@ -2944,7 +2939,7 @@ inline void C_correct_read<CORRECT_INDEL>::extend_out_left(const std::string& km
         kmer_new[0] = NEOCLEOTIDE[it_alter];
 
         // kmer_new is solid
-        float kmer_quality;
+        double kmer_quality;
         bool solid_kmer = query.query_text(kmer_new, kmer_quality);
         if (solid_kmer || max_remaining_non_solid > 0) {
             // if current num_extend = extend_amount
@@ -2988,7 +2983,7 @@ inline void C_correct_read<CORRECT_INDEL>::extend_out_right(const std::string& k
         kmer_new[kmer_length - 1] = NEOCLEOTIDE[it_alter];
 
         // kmer_new is solid
-        float kmer_quality;
+        double kmer_quality;
         bool solid_kmer = query.query_text(kmer_new, kmer_quality);
         if (solid_kmer || max_remaining_non_solid > 0) {
             // if current num_extend = extend_amount
@@ -3223,7 +3218,7 @@ inline bool C_correct_read<CORRECT_INDEL>::create_modification_path_with_indels_
 //----------------------------------------------------------------------
 
 template<bool CORRECT_INDEL>
-inline bool C_correct_read<CORRECT_INDEL>::create_modification_path_towards_3_prime_single_kmer(std::vector<C_candidate_path>& candidate_path_vector, const std::vector<std::size_t>& candidates_indexes, float kmer_quality) {
+inline bool C_correct_read<CORRECT_INDEL>::create_modification_path_towards_3_prime_single_kmer(std::vector<C_candidate_path>& candidate_path_vector, const std::vector<std::size_t>& candidates_indexes, double kmer_quality) {
     C_candidate_path candidate_path;
     for (std::size_t it = 0; it < candidates_indexes.size(); ++it) {
         const std::size_t current_pos = candidates_indexes[it];
@@ -3244,7 +3239,7 @@ inline bool C_correct_read<CORRECT_INDEL>::create_modification_path_towards_3_pr
 //----------------------------------------------------------------------
 
 template<bool CORRECT_INDEL>
-inline bool C_correct_read<CORRECT_INDEL>::create_modification_path_with_single_substitution(std::vector<C_candidate_path>& candidate_path_vector, float kmer_quality, std::size_t pos, char modification) {
+inline bool C_correct_read<CORRECT_INDEL>::create_modification_path_with_single_substitution(std::vector<C_candidate_path>& candidate_path_vector, double kmer_quality, std::size_t pos, char modification) {
     C_candidate_path candidate_path;
 
     candidate_path.add_substitution(pos, modification, get_symbol_probability(pos));
@@ -3260,7 +3255,7 @@ inline bool C_correct_read<CORRECT_INDEL>::create_modification_path_with_single_
 //----------------------------------------------------------------------
 
 template<bool CORRECT_INDEL>
-inline void C_correct_read<CORRECT_INDEL>::create_modification_path_empty_no_extend(std::vector<C_candidate_path>& candidate_path_vector, float kmer_quality) {
+inline void C_correct_read<CORRECT_INDEL>::create_modification_path_empty_no_extend(std::vector<C_candidate_path>& candidate_path_vector, double kmer_quality) {
     C_candidate_path candidate_path;
     candidate_path.rate(kmer_quality, 1ULL);
     candidate_path_vector.push_back(std::move(candidate_path));

@@ -4,8 +4,8 @@
   
   Authors: Marek Kokot
   
-  Version: 3.1.1
-  Date   : 2019-05-19
+  Version: 3.2.2
+  Date   : 2023-03-10
 */
 
 #ifndef _PERCENT_PROGRESS_H

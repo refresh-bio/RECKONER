@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 2.0
+ * Version: 2.1
  * 
  */
 
@@ -97,7 +97,7 @@ void C_correct_read<true>::extend_a_kmer(const std::string& kmer, const std::siz
     const bool is_low_quality_base = is_low_LUT[quality_score[index_kmer + kmer_length - 1]];
 
     // kmer_new is a solid k-mer
-    float kmer_quality;
+    double kmer_quality;
     if (!is_low_quality_base && query.query_text(kmer_new, kmer_quality) == true) {
         modifications_sequence_stack[nesting].quality = kmer_quality;
         modifications_sequence_stack[nesting].modification = kmer_new.back();
@@ -138,7 +138,7 @@ void C_correct_read<true>::extend_a_kmer(const std::string& kmer, const std::siz
                 kmer_new[kmer_length - 1] = NEOCLEOTIDE[it_alter];
 
                 // kmer_new is solid
-                float kmer_quality;
+                double kmer_quality;
                 if (query.query_text(kmer_new, kmer_quality) == true) {
                     solid_found = true;
 
@@ -172,7 +172,6 @@ void C_correct_read<true>::extend_a_kmer(const std::string& kmer, const std::siz
 
                         check_is_new_potential_indel(nesting, index_kmer + kmer_length - 1);
                     }
-                    correct_indel(kmer_new, index_kmer, index_last_mod, candidate_path_vector, nesting, checked_changes, max_remaining_changes, max_remaining_non_solid);
                 }
             }
         }
@@ -207,9 +206,9 @@ void C_correct_read<true>::extend_a_kmer(const std::string& kmer, const std::siz
                         max_remaining_non_solid - 1
                         );
                 }
-                correct_indel(kmer_new, index_kmer, index_last_mod, candidate_path_vector, nesting, checked_changes, max_remaining_changes, max_remaining_non_solid);
             }
         }
+        correct_indel(kmer_new, index_kmer, index_last_mod, candidate_path_vector, nesting, checked_changes, max_remaining_changes, max_remaining_non_solid);
     }
 }
 
@@ -231,7 +230,7 @@ void C_correct_read<false>::extend_a_kmer(const std::string& kmer, const std::si
     const bool is_low_quality_base = is_low_LUT[quality_score[index_kmer + kmer_length - 1]];
 
     // kmer_new is a solid k-mer
-    float kmer_quality;
+    double kmer_quality;
     if (!is_low_quality_base && query.query_text(kmer_new, kmer_quality) == true) {
         modifications_sequence_stack[nesting].quality = kmer_quality;
         modifications_sequence_stack[nesting].modification = kmer_new.back();
@@ -273,7 +272,7 @@ void C_correct_read<false>::extend_a_kmer(const std::string& kmer, const std::si
                 kmer_new[kmer_length - 1] = NEOCLEOTIDE[it_alter];
 
                 // kmer_new is solid
-                float kmer_quality;
+                double kmer_quality;
                 if (query.query_text(kmer_new, kmer_quality) == true) {
                     solid_found = true;
 
@@ -403,7 +402,7 @@ bool C_correct_read<true>::perform_extend_out_left(C_candidate_path& candidate_p
         std::string kmer_initial(sequence_tmp.substr(0, kmer_length - 1));
         kmer_initial = '0' + kmer_initial;
 
-        float max_extended_kmer_quality = 0.0f;
+        double max_extended_kmer_quality = 0.0f;
 
         // each alternative neocletide
         for (std::size_t it_alter = A; it_alter <= T; it_alter++) {
@@ -411,7 +410,7 @@ bool C_correct_read<true>::perform_extend_out_left(C_candidate_path& candidate_p
             kmer_initial[0] = NEOCLEOTIDE[it_alter];
 
             // kmer_initial is solid
-            float kmer_quality = 0.0f;
+            double kmer_quality = 0.0f;
             bool solid_kmer = query.query_text(kmer_initial, kmer_quality);
             if (solid_kmer || max_remaining_non_solid > 0) {
                 // if extend_amount == 1
@@ -505,7 +504,7 @@ bool C_correct_read<false>::perform_extend_out_left(C_candidate_path& candidate_
         std::string kmer_initial(sequence_tmp.substr(0, kmer_length - 1));
         kmer_initial = '0' + kmer_initial;
 
-        float max_extended_kmer_quality = 0.0f;
+        double max_extended_kmer_quality = 0.0f;
 
         // each alternative neocletide
         for (std::size_t it_alter = A; it_alter <= T; it_alter++) {
@@ -513,7 +512,7 @@ bool C_correct_read<false>::perform_extend_out_left(C_candidate_path& candidate_
             kmer_initial[0] = NEOCLEOTIDE[it_alter];
 
             // kmer_initial is solid
-            float kmer_quality = 0.0f;
+            double kmer_quality = 0.0f;
             bool solid_kmer = query.query_text(kmer_initial, kmer_quality);
             if (solid_kmer || max_remaining_non_solid > 0) {
                 // if extend_amount == 1
@@ -620,7 +619,7 @@ bool C_correct_read<true>::perform_extend_out_right(C_candidate_path& candidate_
         std::string kmer_initial(sequence_tmp.substr(last_kmer_pos + 1, kmer_length - 1));
         kmer_initial += '0';
 
-        float max_extended_kmer_quality = 0.0f;
+        double max_extended_kmer_quality = 0.0f;
 
         // each alternative neocletide
         for (std::size_t it_alter = A; it_alter <= T; it_alter++) {
@@ -628,7 +627,7 @@ bool C_correct_read<true>::perform_extend_out_right(C_candidate_path& candidate_
             kmer_initial[kmer_length - 1] = NEOCLEOTIDE[it_alter];
 
             // kmer_initial is solid
-            float kmer_quality = 0.0f;
+            double kmer_quality = 0.0f;
             bool solid_kmer = query.query_text(kmer_initial, kmer_quality);
             if (solid_kmer || max_remaining_non_solid > 0) {
                 // if extend_amount == 1
@@ -727,7 +726,7 @@ bool C_correct_read<false>::perform_extend_out_right(C_candidate_path& candidate
         std::string kmer_initial(sequence_tmp.substr(read_length - kmer_length + 1, kmer_length - 1));
         kmer_initial += '0';
 
-        float max_extended_kmer_quality = 0.0f;
+        double max_extended_kmer_quality = 0.0f;
 
         // each alternative neocletide
         for (std::size_t it_alter = A; it_alter <= T; it_alter++) {
@@ -735,7 +734,7 @@ bool C_correct_read<false>::perform_extend_out_right(C_candidate_path& candidate
             kmer_initial[kmer_length - 1] = NEOCLEOTIDE[it_alter];
 
             // kmer_initial is solid
-            float kmer_quality = 0.0f;
+            double kmer_quality = 0.0f;
             bool solid_kmer = query.query_text(kmer_initial, kmer_quality);
             if (solid_kmer || max_remaining_non_solid > 0) {
                 // if extend_amount == 1
@@ -788,7 +787,7 @@ bool C_correct_read<true>::perform_extend_right_inner_region(C_candidate_path & 
         std::string sequence_tmp(sequence_modified);
         apply_path_to_temporary_read(candidate_path, sequence_tmp);
 
-        float max_extended_kmer_quality = 0.0f;
+        double max_extended_kmer_quality = 0.0f;
 
         // check k-mers
         std::size_t num_success(0);
@@ -803,7 +802,7 @@ bool C_correct_read<true>::perform_extend_right_inner_region(C_candidate_path & 
         for (std::size_t it_check = index_last_mod_kmer + 2; it_check <= index_last_kmer_to_check; it_check++) {
             const char* current_kmer = sequence_tmp.c_str() + it_check;
 
-            float kmer_quality;
+            double kmer_quality;
             if (query.query_text(current_kmer, kmer_quality) == true) {
                 num_success++;
             }
@@ -842,7 +841,7 @@ bool C_correct_read<false>::perform_extend_right_inner_region(C_candidate_path &
         std::string sequence_tmp(sequence_modified);
         apply_path_to_temporary_read(candidate_path, sequence_tmp);
 
-        float max_extended_kmer_quality = 0.0f;
+        double max_extended_kmer_quality = 0.0f;
 
         // check k-mers
         std::size_t num_success(0);
@@ -857,7 +856,7 @@ bool C_correct_read<false>::perform_extend_right_inner_region(C_candidate_path &
         for (std::size_t it_check = index_last_mod_kmer + 2; it_check <= index_last_kmer_to_check; it_check++) { // add 1 to omit the last already checked k-mer
             const char* current_kmer = sequence_tmp.c_str() + it_check;
 
-            float kmer_quality;
+            double kmer_quality;
             if (query.query_text(current_kmer, kmer_quality) == true) {
                 num_success++;
             }
@@ -1113,7 +1112,7 @@ std::vector<C_candidate_path>::iterator C_correct_read<false>::choose_best_corre
 //----------------------------------------------------------------------
 
 template<>
-bool C_correct_read<true>::create_modification_path_with_single_indel(std::vector<C_candidate_path>& candidate_path_vector, float kmer_quality, std::size_t pos, bool insertion /*= true*/, char modification /*= '0'*/) {
+bool C_correct_read<true>::create_modification_path_with_single_indel(std::vector<C_candidate_path>& candidate_path_vector, double kmer_quality, std::size_t pos, bool insertion /*= true*/, char modification /*= '0'*/) {
     C_candidate_path candidate_path;
 
     if (insertion) {
@@ -1134,7 +1133,7 @@ bool C_correct_read<true>::create_modification_path_with_single_indel(std::vecto
 //----------------------------------------------------------------------
 
 template<>
-bool C_correct_read<false>::create_modification_path_with_single_indel(std::vector<C_candidate_path>& candidate_path_vector, float kmer_quality, std::size_t pos, bool insertion /*= true*/, char modification /*= '0'*/) {
+bool C_correct_read<false>::create_modification_path_with_single_indel(std::vector<C_candidate_path>& candidate_path_vector, double kmer_quality, std::size_t pos, bool insertion /*= true*/, char modification /*= '0'*/) {
     assert(false);
     return false;
 }

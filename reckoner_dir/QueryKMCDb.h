@@ -4,7 +4,7 @@
 * This software is distributed under GNU GPL 3 license.
 *
 * Authors: Yun Heo, Maciej Dlugosz
-* Version: 2.0
+* Version: 2.1
 *
 */
 
@@ -44,13 +44,10 @@ public:
     bool use_long_kmer() { return kmc_long_file != nullptr; }
 
     template<typename KMER_TYPE>
-    bool query_text(const KMER_TYPE& kmer, float& kmer_quality);
+    bool query_text(const KMER_TYPE& kmer, double& kmer_quality);
 
     template<typename KMER_TYPE>
-    bool query_text(const KMER_TYPE& kmer, float& kmer_quality, std::size_t& num_forward_kmers, std::size_t& num_reverse_kmers);
-
-    template<typename KMER_TYPE>
-    bool query_text_long_kmer(const KMER_TYPE& kmer, float& kmer_quality);
+    bool query_text_long_kmer(const KMER_TYPE& kmer, double& kmer_quality);
 };
 
 
@@ -100,7 +97,7 @@ bool QueryKMCDb::get_canonical_kmer(const KMER_TYPE& kmer, std::string& canonica
 //----------------------------------------------------------------------
 
 template<typename KMER_TYPE>
-inline bool QueryKMCDb::query_text(const KMER_TYPE& kmer, float& kmer_quality) {
+inline bool QueryKMCDb::query_text(const KMER_TYPE& kmer, double& kmer_quality) {
     std::string canonical;
     if (get_canonical_kmer(kmer, canonical, kmer_length)) {
         const bool res = kmer_api.from_string_low_level(canonical);
@@ -111,31 +108,11 @@ inline bool QueryKMCDb::query_text(const KMER_TYPE& kmer, float& kmer_quality) {
         assert(res);
     }
 
-    return kmc_file.CheckKmer(kmer_api, kmer_quality);
-}
-
-
-
-//----------------------------------------------------------------------
-// Checks in the KMC database if k-mer exists, if yes it returns kmer counter. Determines a number of reverses.
-//----------------------------------------------------------------------
-
-template<typename KMER_TYPE>
-inline bool QueryKMCDb::query_text(const KMER_TYPE& kmer, float& kmer_quality, std::size_t& num_forward_kmers, std::size_t& num_reverse_kmers) {
-    assert(kmer_api.from_string_low_level(kmer));
-
-    if (kmc_file.CheckKmer(kmer_api, kmer_quality)) {
-        ++num_forward_kmers;
+    uint32 kmer_quality_res;
+    if (kmc_file.CheckKmer(kmer_api, kmer_quality_res)) {
+        kmer_quality = static_cast<double>(kmer_quality_res);
         return true;
     }
-
-    kmer_api.reverse();
-
-    if (kmc_file.CheckKmer(kmer_api, kmer_quality)) {
-        ++num_reverse_kmers;
-        return true;
-    }
-
     return false;
 }
 
@@ -146,7 +123,7 @@ inline bool QueryKMCDb::query_text(const KMER_TYPE& kmer, float& kmer_quality, s
 //----------------------------------------------------------------------
 
 template<typename KMER_TYPE>
-inline bool QueryKMCDb::query_text_long_kmer(const KMER_TYPE& kmer, float& kmer_quality) {
+inline bool QueryKMCDb::query_text_long_kmer(const KMER_TYPE& kmer, double& kmer_quality) {
     std::string canonical;
     if (get_canonical_kmer(kmer, canonical, long_kmer_length)) {
         const bool res = kmer_long_api.from_string_low_level(canonical);
@@ -157,7 +134,12 @@ inline bool QueryKMCDb::query_text_long_kmer(const KMER_TYPE& kmer, float& kmer_
         assert(res);
     }
 
-    return kmc_long_file->CheckKmer(kmer_long_api, kmer_quality);
+    uint32 kmer_quality_res;
+    if (kmc_long_file->CheckKmer(kmer_long_api, kmer_quality_res)) {
+        kmer_quality = static_cast<double>(kmer_quality_res);
+        return true;
+    }
+    return false;
 }
 
 #endif

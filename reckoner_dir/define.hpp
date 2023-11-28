@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 2.0
+ * Version: 2.1
  * 
  */
 
@@ -34,7 +34,7 @@
 
 
 // definitions
-#define VERSION                    "2.0"
+#define VERSION                    "2.1"
 #define NUM_NEOCLEOTIDE            4
 #define A                          0
 #define C                          1
@@ -102,7 +102,7 @@
 #define K_LEN_A                     0.9
 #define K_LEN_B                     3
 #if defined(WIN32) || defined(_WIN32) // Windows
-#define KMC_EXECUTABLE_NAME "kmer_counter.exe"
+#define KMC_EXECUTABLE_NAME "kmc.exe"
 #define KMC_TOOLS_EXECUTABLE_NAME "kmc_tools.exe"
 #define DIRECTORY_SEPARATOR "\\"
 #else // Linux

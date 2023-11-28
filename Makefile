@@ -1,7 +1,7 @@
 KMC_DIR = kmc_dir/
 RECKONER_DIR = reckoner_dir/
 BIN_DIR = bin/
-CC=g++
+CC = g++
 
 all: bin kmc_main reckoner
 

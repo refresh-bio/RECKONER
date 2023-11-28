@@ -4,8 +4,8 @@
   
   Authors: Marek Kokot
   
-  Version: 3.1.1
-  Date   : 2019-05-19
+  Version: 3.2.2
+  Date   : 2023-03-10
 */
 
 #ifndef _FASTQ_READER_H
@@ -17,9 +17,7 @@
 #include <stdio.h>
 #include <iostream>
 
-#include "libs/zlib.h"
-#include "libs/bzlib.h"
-
+#include "../3rd_party/cloudflare/zlib.h"
 
 using namespace std;
 
@@ -28,7 +26,7 @@ using namespace std;
 // FASTA/FASTQ reader class
 //************************************************************************************************************
 class CFastqReader {
-	typedef enum {m_plain, m_gzip, m_bzip2} t_mode;
+	typedef enum {m_plain, m_gzip} t_mode;
 
 	CMemoryPool *pmm_fastq;
 
@@ -39,7 +37,6 @@ class CFastqReader {
 
 	FILE *in;
 	gzFile_s *in_gzip;
-	BZFILE *in_bzip2;
 	int bzerror;
 
 	uint64 part_size;
@@ -48,18 +45,14 @@ class CFastqReader {
 	uint64 part_filled;
 	
 	uint32 gzip_buffer_size;
-	uint32 bzip2_buffer_size;
-	
 
 	bool SkipNextEOL(uchar *part, int64 &pos, int64 max_pos);
-
 	void GetFullLineFromEnd(int64& line_sart, int64& line_end, uchar* buff, int64& pos);
-	
 	
 	bool IsEof();
 
 public:
-	CFastqReader(CMemoryPool *_pmm_fastq, CFilteringParams::file_type _file_type, uint32 _gzip_buffer_size, uint32 _bzip2_buffer_size, int _kmer_len);
+	CFastqReader(CMemoryPool *_pmm_fastq, CFilteringParams::file_type _file_type, uint32 _gzip_buffer_size, int _kmer_len);
 	~CFastqReader();
 
 	static uint64 OVERHEAD_SIZE;
@@ -84,7 +77,6 @@ class CWFastqReader {
 	CPartQueue *part_queue;
 	CFilteringParams::file_type file_type;
 	uint32 gzip_buffer_size;
-	uint32 bzip2_buffer_size;
 	int kmer_len;
 
 public:

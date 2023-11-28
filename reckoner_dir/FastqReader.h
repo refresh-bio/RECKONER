@@ -4,7 +4,7 @@
  * This software is distributed under GNU GPL 3 license.
  *
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 2.0
+ * Version: 2.1
  *
 */
 
@@ -12,8 +12,8 @@
 #define _FASTQ_READER_H
 
 #include "FileReader.h"
+#include "../kmc_dir/3rd_party/cloudflare/zlib.h"
 #include "Log.h"
-#include <zlib.h>
 #include <string>
 #include <stack>
 #include <queue>

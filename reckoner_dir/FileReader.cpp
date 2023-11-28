@@ -4,14 +4,13 @@
  * This software is distributed under GNU GPL 3 license.
  * 
  * Authors: Yun Heo, Maciej Dlugosz
- * Version: 2.0
+ * Version: 2.1
  * 
  */
 
 #define _CRT_SECURE_NO_DEPRECATE
 
 #include "FileReader.h"
-#include <zlib.h>
 #include <iostream>
 #include <fstream>
 #include <string>
