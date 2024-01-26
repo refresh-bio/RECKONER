@@ -94,5 +94,6 @@ Input files should be located in "bin\Debug".
 + RECKONER is distributed under license GPL 3.
 
 ## Citing
++ <a href="https://www.nature.com/articles/s41598-024-52386-9">Długosz, M., Deorowicz, S. (2024) Illumina reads correction: evaluation and improvements, Scientific Reports 14, 2232.</a>
 + <a href="https://doi.org/10.1007/978-3-319-67792-7_12">Długosz, M., Deorowicz, S., Kokot, M. (2017) Improvements in DNA Reads Correction, International Conference on Man-Machine Interactions, 115&ndash;124.</a>
 + <a href="https://doi.org/10.1093/bioinformatics/btw746">Długosz, M., Deorowicz, S. (2017) RECKONER: read error corrector based on KMC, Bioinformatics, 33:1086&ndash;1089.</a>
